@@ -1,0 +1,17 @@
+// Example script file
+
+var table = List();
+
+for (var i = 0; i < 32; i += 1) {
+    table.add(Math.sin(i / Math.PI / 2));
+}
+
+
+for (var i = 0; i < table.length; i += 1) {
+    var value = table[i];
+    print(i + " | " + (" " * ((value + 1) * 8)) + "#");
+}
+
+print((Math.random() > 0.3) | (Math.random() < -0.3));
+
+print(Global.Math);

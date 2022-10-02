@@ -1,0 +1,30 @@
+package eu.pb4.lang.exception;
+
+import eu.pb4.lang.parser.Tokenizer;
+import eu.pb4.lang.util.GenUtils;
+
+public class UnexpectedTokenException extends Exception implements ScriptConsumer {
+    public final Tokenizer.Token tokenFound;
+    public final Tokenizer.TokenType tokenTypeRequired;
+
+    private String input;
+
+    public UnexpectedTokenException(Tokenizer.Token tokenFound, Tokenizer.TokenType typeRequired) {
+        this.tokenFound = tokenFound;
+        this.tokenTypeRequired = typeRequired;
+    }
+
+    public void supplyInput(String input) {
+        this.input = input;
+    }
+
+    @Override
+    public String getMessage() {
+        if (this.input == null) {
+            return "Invalid token at index" + tokenFound.start() + "/" + tokenFound.end() + "! Required: " + this.tokenTypeRequired;
+        } else {
+            var val = GenUtils.getLineAndChar(tokenFound.start(), this.input);
+            return "Invalid token at line " + val[0] + " position " + val[1] + " (\"" + GenUtils.getSubString(this.input, tokenFound.start() - 10, tokenFound.end() + 10) + "\")! Required: " + this.tokenTypeRequired;
+        }
+    }
+}
