@@ -1,9 +1,6 @@
 package eu.pb4.lang.expression;
 
-import eu.pb4.lang.object.BooleanObject;
-import eu.pb4.lang.object.JavaFunctionObject;
-import eu.pb4.lang.object.ObjectScope;
-import eu.pb4.lang.object.XObject;
+import eu.pb4.lang.object.*;
 
 import java.util.List;
 
@@ -25,7 +22,7 @@ public record LoopWhileExpression(Expression check, List<Expression> executable)
                     }
                 } else {
                     lastObject = e.execute(subScope);
-                    if (e instanceof ReturnExpression) {
+                    if (lastObject instanceof ForceReturnObject) {
                         return lastObject;
                     }
                 }

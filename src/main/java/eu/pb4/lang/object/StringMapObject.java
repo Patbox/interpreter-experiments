@@ -2,35 +2,17 @@ package eu.pb4.lang.object;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
 import java.util.Map;
 
-public class StringMapObject extends XObject<Map<String, XObject<?>>> {
-    private final Map<String, XObject<?>> map ;
-
-    public StringMapObject(Map<String, XObject<?>> map) {
-        this.map = map;
-    }
-
-    @Override
-    public XObject<?> get(String key) {
-        var x = this.map.get(key);
-        if (x != null) {
-            return x;
-        }
-        return super.get(key);
-    }
-
-    @Nullable
-    @Override
-    public Map<String, XObject<?>> asJava() {
-        return this.map;
-    }
+public class StringMapObject extends XObject<Map<String, XObject<?>>>{
+    private Map<String, XObject<?>> map = new HashMap<>();
 
     @Override
     public String asString() {
         var builder = new StringBuilder();
 
-        builder.append("<[");
+        builder.append("<[{");
 
         var iterator = this.map.entrySet().iterator();
 
@@ -45,8 +27,33 @@ public class StringMapObject extends XObject<Map<String, XObject<?>>> {
             }
         }
 
-        builder.append("]>");
+        builder.append("}]>");
 
         return builder.toString();
+    }
+
+    @Override
+    public XObject<?> get(String key) {
+        return this.map.getOrDefault(key, XObject.NULL);
+    }
+
+    @Override
+    public XObject<?> get(XObject<?> key) {
+        return this.get(key.asString());
+    }
+
+    @Override
+    public void set(String key, XObject<?> object) {
+        this.map.put(key, object);
+    }
+
+    @Override
+    public void set(XObject<?> key, XObject<?> object) {
+        this.set(key.asString(), object);
+    }
+
+    @Override
+    public @Nullable Map<String, XObject<?>> asJava() {
+        return this.map;
     }
 }

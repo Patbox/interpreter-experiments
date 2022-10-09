@@ -8,6 +8,7 @@ import java.util.function.BiFunction;
 
 public record UnaryExpression(Expression left, Expression right, BiFunction<XObject<?>, XObject<?>, XObject<?>> function) implements Expression {
 
+
     @Override
     public XObject<?> execute(ObjectScope scope) {
         return this.function.apply(left.execute(scope), right.execute(scope));

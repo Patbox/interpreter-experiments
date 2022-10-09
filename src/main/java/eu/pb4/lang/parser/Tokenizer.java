@@ -68,7 +68,7 @@ public class Tokenizer {
                 default -> {
                     TokenType type = null;
 
-                    if (!this.reader.isDone() && (i == '+' || i == '-' || i == '=' || i == '!' || i == '/' || i == '*' || i == '<' || i == '>' || i == '^')) {
+                    if (!this.reader.isDone() && (i == '+' || i == '-' || i == '=' || i == '!' || i == '/' || i == '*' || i == '<' || i == '>' || i == '^' || i == '&' || i == '|')) {
                         var x = this.reader.peek();
 
                         if (i == '/') {
@@ -91,6 +91,7 @@ public class Tokenizer {
                             }
                         }
 
+
                         type = switch (i) {
                             case '+' -> switch (x) {
                                 case '=' -> TokenType.ADD_SET;
@@ -111,6 +112,8 @@ public class Tokenizer {
                             case '^' -> '=' == x ? TokenType.POWER_SET : null;
                             case '<' -> '=' == x ? TokenType.LESS_OR_EQUAL : null;
                             case '>' -> '=' == x ? TokenType.MORE_OR_EQUAL : null;
+                            case '&' -> i == x ? TokenType.AND_DOUBLE : null;
+                            case '|' -> i == x ? TokenType.OR_DOUBLE : null;
                             default -> null;
                         };
 
@@ -191,8 +194,12 @@ public class Tokenizer {
         NEGATE_EQUAL,
         SET,
         EQUAL,
+
         AND,
+        AND_DOUBLE,
         OR,
+        OR_DOUBLE,
+
         DOT,
         COMMA,
         MORE_THAN,

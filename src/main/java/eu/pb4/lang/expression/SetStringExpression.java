@@ -7,7 +7,8 @@ public record SetStringExpression(Expression base, String key, Expression value)
 
     @Override
     public XObject<?> execute(ObjectScope scope) {
-        base.execute(scope).set(key, value.execute(scope));
-        return XObject.NULL;
+        var val = value.execute(scope);
+        base.execute(scope).set(key, val);
+        return val;
     }
 }

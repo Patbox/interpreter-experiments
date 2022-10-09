@@ -103,6 +103,14 @@ public abstract class XObject<T> {
         return o instanceof XObject<?> xObject ? this.equalsObj(xObject) : false;
     }
 
+    public XObject<?> and(XObject<?> y) {
+        throw new UnsupportedOperationException("This object doesn't support and");
+    }
+
+    public XObject<?> or(XObject<?> y) {
+        throw new UnsupportedOperationException("This object doesn't support or");
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(this.asJava());
@@ -113,12 +121,4 @@ public abstract class XObject<T> {
     }
 
     public abstract String asString();
-
-    public XObject<?> and(XObject<?> y) {
-        throw new UnsupportedOperationException("This object doesn't support and");
-    }
-
-    public XObject<?> or(XObject<?> y) {
-        throw new UnsupportedOperationException("This object doesn't support or");
-    }
 }

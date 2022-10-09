@@ -1,7 +1,7 @@
 package eu.pb4.lang.util;
 
 import eu.pb4.lang.object.JavaFunctionObject;
-import eu.pb4.lang.object.StringMapObject;
+import eu.pb4.lang.object.StaticStringMapObject;
 import eu.pb4.lang.object.XObject;
 
 import java.util.HashMap;
@@ -59,6 +59,6 @@ public final class ObjectBuilder {
     }
 
     public XObject<?> build() {
-        return new StringMapObject(this.map);
+        return new StaticStringMapObject(this.map);
     }
 }

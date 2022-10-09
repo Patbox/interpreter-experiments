@@ -1,10 +1,11 @@
 package eu.pb4.lang.object;
 
 import eu.pb4.lang.expression.Expression;
-import eu.pb4.lang.expression.ReturnExpression;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class FunctionObject extends XObject<FunctionObject> {
     private final Expression[] expressions;
@@ -38,10 +39,24 @@ public class FunctionObject extends XObject<FunctionObject> {
         XObject<?> lastObject = XObject.NULL;
         for (int i = 0; i < this.expressions.length; i++) {
             lastObject = this.expressions[i].execute(funcScope);
-            if (this.expressions[i] instanceof ReturnExpression) {
-                return lastObject;
+            if (lastObject instanceof ForceReturnObject forceReturnObject) {
+                return forceReturnObject.asJava();
             }
         }
         return lastObject;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        if (!super.equals(o)) return false;
+        FunctionObject that = (FunctionObject) o;
+        return Arrays.equals(expressions, that.expressions) && Arrays.equals(args, that.args) && Objects.equals(scope, that.scope);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(scope, expressions, args);
     }
 }

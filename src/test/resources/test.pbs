@@ -1,17 +1,49 @@
 // Example script file
 
+var ergh = 6;
+
+var test2 = (x) -> {5;};
+var test = (x) -> x * 2;
+
+(() -> { return 8; })();
+
+
+print((2 * 5 + 8) ^ 2 * 2);
+print(2 * (5 * 2 + 8) ^ 2);
+
+var o = 0;
+
+print(++o + 10);
+print(o++ + 10);
+print(o);
+
+var map = Map();
+
+map[true] = false;
+map[null] = null;
+map[3] = 85;
+
+print(map);
+
+var obj = Object();
+
+obj.test = 5;
+obj[9] = "test";
+obj["hello"] = "world";
+
+print(obj);
+
 var table = List();
 
-for (var i = 0; i < 32; i += 1) {
-    table.add(Math.sin(i / Math.PI / 2));
+for var i = 0; i < 32; ++i {
+    table.add(Math.sin(i / Math.PI));
 }
 
-
-for (var i = 0; i < table.length; i += 1) {
+for var i = 0; i < table.length; i++ {
     var value = table[i];
-    print(i + " | " + (" " * ((value + 1) * 8)) + "#");
+    print(i + " | " + (" " * ((value + 1) * 10)) + "#");
 }
 
-print((Math.random() > 0.3) | (Math.random() < -0.3));
+print(Math.random() > 0.3 || Math.random() < -0.3);
 
 print(Global.Math);

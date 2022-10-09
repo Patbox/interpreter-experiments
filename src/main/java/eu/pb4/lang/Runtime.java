@@ -1,8 +1,6 @@
 package eu.pb4.lang;
 
 import eu.pb4.lang.exception.ScriptConsumer;
-import eu.pb4.lang.exception.UnexpectedTokenException;
-import eu.pb4.lang.expression.ReturnExpression;
 import eu.pb4.lang.object.*;
 import eu.pb4.lang.parser.ExpressionBuilder;
 import eu.pb4.lang.parser.ExpressionMatcher;
@@ -27,8 +25,8 @@ public class Runtime {
             for (var expression : list) {
                 lastObject = expression.execute(scope);
 
-                if (expression instanceof ReturnExpression) {
-                    return lastObject;
+                if (lastObject instanceof ForceReturnObject forceReturnObject) {
+                    return forceReturnObject.asJava();
                 }
             }
 
@@ -60,6 +58,7 @@ public class Runtime {
         }));
 
         scope.declareVariable("Map", new JavaFunctionObject((args) -> new MapObject()));
+        scope.declareVariable("Object", new JavaFunctionObject((args) -> new StringMapObject()));
 
         scope.declareVariable("Math", new ObjectBuilder()
                         .twoArgRet("min", (a, b) -> new NumberObject(Math.min(a.asNumber(), b.asNumber())))
@@ -74,6 +73,10 @@ public class Runtime {
                         .put("TAU", new NumberObject(Math.PI * 2))
                 .build());
 
+        scope.declareVariable("Runtime", new ObjectBuilder()
+                        .oneArg("run", x -> this.run(x.asString()))
+                        .noArg("currentTimeMillis", () -> System.currentTimeMillis())
+                .build());
 
         scope.declareVariable("Global", scope);
     }

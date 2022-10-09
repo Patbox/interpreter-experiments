@@ -129,8 +129,10 @@ public class StringReader {
                 value = isHex ? Integer.parseInt(builder.toString(), 16) : Double.parseDouble(builder.toString());
                 initiated = true;
             } catch (Throwable throwable) {
-                this.back();
-                return initiated ? new Result<>(start, this.index, value) : null;
+                if (initiated) {
+                    this.back();
+                    return new Result<>(start, this.index, value);
+                }
             }
         }
 

@@ -3,7 +3,7 @@ package eu.pb4.lang.exception;
 import eu.pb4.lang.parser.Tokenizer;
 import eu.pb4.lang.util.GenUtils;
 
-public class InvalidTokenException extends Exception implements  ScriptConsumer{
+public class InvalidTokenException extends Exception implements ScriptConsumer {
     private final int start;
     private final int character;
 
@@ -12,6 +12,10 @@ public class InvalidTokenException extends Exception implements  ScriptConsumer{
     public InvalidTokenException(int start, int character) {
         this.start = start;
         this.character = character;
+    }
+
+    public InvalidTokenException(Tokenizer.Token token) {
+        this(token.start(), token.value() instanceof Number number ? number.intValue() : ' ');
     }
 
     public void supplyInput(String input) {

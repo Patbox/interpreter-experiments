@@ -19,6 +19,14 @@ public record TrinaryExpression(Expression left, Expression middle, Expression r
         });
     }
 
+    public static TrinaryExpression setRetOld(Expression left, Expression middle, Expression right) {
+        return new TrinaryExpression(left, middle, right, (a, b, c) -> {
+            var old = a.get(b);
+            a.set(b, c);
+            return old;
+        });
+    }
+
 
     public interface TriFunction {
         XObject<?> apply(XObject<?> left, XObject<?> middle, XObject<?> right);
