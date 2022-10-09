@@ -56,4 +56,12 @@ import Test "testjar:test2";
 
 print(Test.get());
 Test.set("Everyone!");
-print(Test.get());
+print(import("testjar:test2").get());
+
+print(typeof obj);
+print(typeof map);
+print(typeof table);
+print(typeof 0xFF);
+print(typeof "hello");
+print(typeof Global);
+print(typeof print);

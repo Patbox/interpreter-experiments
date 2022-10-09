@@ -1,5 +1,6 @@
 package eu.pb4.lang.object;
 
+import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.DirectObjectExpression;
 import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
@@ -19,74 +20,77 @@ public abstract class XObject<T> {
             return null;
         }
     };
-    private Expression expression = new DirectObjectExpression(this);
     private StringObject toStringValue;
 
     @Nullable
     public abstract T asJava();
 
-    public Expression asExpression() {
-        return this.expression;
+    public Expression asExpression(Expression.Position info) {
+        return new DirectObjectExpression(this, info);
     }
 
 
-    public XObject<?> divide(XObject<?> object) {
-        throw new UnsupportedOperationException("This object doesn't support division");
+    public XObject<?> divide(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "division of " + this.type() + " with " + object.type());
     }
 
-    public XObject<?> multiply(XObject<?> object) {
-        throw new UnsupportedOperationException("This object doesn't support multiplication");
+    public String type() {
+        return this.getClass().getSimpleName();
     }
 
-    public XObject<?> add(XObject<?> object) {
+    public XObject<?> multiply(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "multiplication of " + this.type() + " with " + object.type());
+    }
+
+    public XObject<?> add(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (this instanceof StringObject || object instanceof StringObject) {
             return new StringObject(this.asString() + object.asString());
         }
 
-        throw new UnsupportedOperationException("This object doesn't support being added to");
+        throw new InvalidOperationException(info, "addition of " + this.type() + " with " + object.type());
     }
 
-    public XObject<?> remove(XObject<?> object) {
-        throw new UnsupportedOperationException("This object doesn't support being removed from " + this.getClass() + " | " + object.getClass());
+    public XObject<?> subtract(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "subtraction of " + this.type() + " with " + object.type());
     }
 
-    public XObject<?> power(XObject<?> y) {
-        throw new UnsupportedOperationException("This object doesn't support power");
+    public XObject<?> power(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "power of " + this.type() + " with " + object.type());
     }
 
-    public boolean lessThan(XObject<?> object) {
-        throw new UnsupportedOperationException("This object doesn't support less than action");
+    public boolean lessThan(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "less than check of " + this.type() + " against " + object.type());
     }
 
-    public boolean lessOrEqual(XObject<?> object) {
-        throw new UnsupportedOperationException("This object doesn't support less than or equal action");
+    public boolean lessOrEqual(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "less or equal than check of " + this.type() + " against " + object.type());
     }
 
-    public XObject<?> negate() {
-        throw new UnsupportedOperationException("This object doesn't support being negated");
+    public XObject<?> negate(ObjectScope scope, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "negation");
     }
 
-    public boolean equalsObj(XObject<?> object) {
+    public boolean equalsObj(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         return Objects.equals(this.asJava(), object.asJava());
     }
 
-    public XObject<?> call(XObject<?>... args) {
-        throw new UnsupportedOperationException("This object doesn't support being called");
+    public XObject<?> call(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "being called as function");
     }
 
-    public void set(XObject<?> key, XObject<?> object) {
-        throw new UnsupportedOperationException("This object doesn't support being set");
+    public void set(ObjectScope scope, XObject<?> key, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "changing " + this.type() + "'s entry '" + key.asString() + "' (" + key.type() + ") + to " + object.type());
     }
 
-    public void set(String key, XObject<?> object) {
-        throw new UnsupportedOperationException("This object doesn't support being set");
+    public void set(ObjectScope scope, String key, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "changing " + this.type() + "'s property '" + key + "' to " + object.type());
     }
 
-    public XObject<?> get(XObject<?> key) {
-        throw new UnsupportedOperationException("This object doesn't support get");
+    public XObject<?> get(ObjectScope scope, XObject<?> key, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, this.type() + "'sdoesn't contain entry '" + key.asString() + "' (" + key.type() + ")");
     }
 
-    public XObject<?> get(String key) {
+    public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
         if (key.equals("string")) {
             if (this.toStringValue == null) {
                 this.toStringValue = new StringObject(this.asString());
@@ -95,20 +99,20 @@ public abstract class XObject<T> {
             return this.toStringValue;
         }
 
-        throw new UnsupportedOperationException("This object doesn't support get");
+        throw new InvalidOperationException(info, this.type() + "doesn't contain property '" + key + "'");
     }
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof XObject<?> xObject ? this.equalsObj(xObject) : false;
+        return o instanceof XObject<?> xObject && Objects.equals(this.asJava(), xObject.asJava());
     }
 
-    public XObject<?> and(XObject<?> y) {
-        throw new UnsupportedOperationException("This object doesn't support and");
+    public XObject<?> and(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "'and' operator of " + this.type() + " with " + object.type());
     }
 
-    public XObject<?> or(XObject<?> y) {
-        throw new UnsupportedOperationException("This object doesn't support or");
+    public XObject<?> or(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "'or' operator of " + this.type() + " with " + object.type());
     }
 
     @Override

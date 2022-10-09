@@ -20,7 +20,7 @@ public class Main {
         runtime.registerImporter((x) -> {
             if (x.startsWith("testjar:")) {
                 try {
-                    return runtime.runAndStoreExports(x, Files.readString(Path.of(Main.class.getClassLoader().getResource( x.substring("testjar:".length() )+ ".pbs").toURI()))).scope().getExportObject();
+                    return runtime.runAndStoreAsImported(x, Files.readString(Path.of(Main.class.getClassLoader().getResource( x.substring("testjar:".length() )+ ".pbs").toURI()))).scope().getExportObject();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -31,6 +31,7 @@ public class Main {
         runtime.getScope().freeze();
         var time = System.currentTimeMillis();
         runtime.run(input);
+        runtime.importAndRun("testjar:invalid");
         System.out.println("Time: " + (System.currentTimeMillis() - time));
 
     }

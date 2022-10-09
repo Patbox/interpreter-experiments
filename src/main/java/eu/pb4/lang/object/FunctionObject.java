@@ -1,5 +1,6 @@
 package eu.pb4.lang.object;
 
+import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,9 +20,8 @@ public class FunctionObject extends XObject<FunctionObject> {
     }
 
     @Override
-    public String asString() {
-        return "<function>";
-    }
+    public String asString() { return "<function>"; }
+    public String type() { return "function"; }
 
     @Override
     public @Nullable FunctionObject asJava() {
@@ -29,8 +29,8 @@ public class FunctionObject extends XObject<FunctionObject> {
     }
 
     @Override
-    public XObject<?> call(XObject<?>... args) {
-        var funcScope = new ObjectScope(scope);
+    public XObject<?> call(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
+        var funcScope = new ObjectScope(this.scope);
         var count = Math.min(args.length, this.args.length);
         for (var i = 0; i < count; i++) {
             funcScope.declareVariable(this.args[i], args[i]);
@@ -38,7 +38,8 @@ public class FunctionObject extends XObject<FunctionObject> {
 
         XObject<?> lastObject = XObject.NULL;
         for (int i = 0; i < this.expressions.length; i++) {
-            lastObject = this.expressions[i].execute(funcScope);
+            var expr = this.expressions[i];
+            lastObject = expr.execute(funcScope);
             if (lastObject instanceof ForceReturnObject forceReturnObject) {
                 return forceReturnObject.asJava();
             }

@@ -37,6 +37,7 @@ public class Tokenizer {
                     case "export" -> TokenType.EXPORT;
                     case "import" -> TokenType.IMPORT;
                     case "class" -> TokenType.CLASS;
+                    case "typeof" -> TokenType.TYPEOF;
                     default -> TokenType.IDENTIFIER;
                 };
 
@@ -223,9 +224,11 @@ public class Tokenizer {
         EXPORT,
         IMPORT,
         CLASS,
+        TYPEOF,
 
         CONTINUE,
         BREAK,
+
 
         FUNCTION_ARROW
     }

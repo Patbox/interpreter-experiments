@@ -1,5 +1,7 @@
 package eu.pb4.lang.object;
 
+import eu.pb4.lang.exception.InvalidOperationException;
+import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
@@ -12,12 +14,17 @@ public class StaticStringMapObject extends XObject<Map<String, XObject<?>>> {
     }
 
     @Override
-    public XObject<?> get(String key) {
+    public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
         var x = this.map.get(key);
         if (x != null) {
             return x;
         }
-        return super.get(key);
+        return super.get(scope, key, info);
+    }
+
+    @Override
+    public String type() {
+        return "runtime object";
     }
 
     @Nullable

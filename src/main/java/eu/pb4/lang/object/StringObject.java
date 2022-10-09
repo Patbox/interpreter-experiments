@@ -1,5 +1,7 @@
 package eu.pb4.lang.object;
 
+import eu.pb4.lang.exception.InvalidOperationException;
+import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
 public class StringObject extends XObject<String> {
@@ -20,7 +22,12 @@ public class StringObject extends XObject<String> {
     }
 
     @Override
-    public XObject<?> multiply(XObject<?> object) {
+    public String type() {
+        return "string";
+    }
+
+    @Override
+    public XObject<?> multiply(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             var builder = new StringBuilder();
 
@@ -32,6 +39,6 @@ public class StringObject extends XObject<String> {
 
         }
 
-        return super.multiply(object);
+        return super.multiply(scope, object, info);
     }
 }

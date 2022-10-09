@@ -1,5 +1,7 @@
 package eu.pb4.lang.object;
 
+import eu.pb4.lang.exception.InvalidOperationException;
+import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
 public class NumberObject extends XObject<Double> {
@@ -29,76 +31,81 @@ public class NumberObject extends XObject<Double> {
     }
 
     @Override
-    public XObject<?> add(XObject<?> object) {
+    public XObject<?> add(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             return new NumberObject(this.value + numberObject.value);
         }
 
-        return super.add(object);
+        return super.add(scope, object, info);
     }
 
     @Override
-    public XObject<?> remove(XObject<?> object) {
+    public XObject<?> subtract(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             return new NumberObject(this.value - numberObject.value);
         }
 
-        return super.remove(object);
+        return super.subtract(scope, object, info);
     }
 
     @Override
-    public XObject<?> multiply(XObject<?> object) {
+    public XObject<?> multiply(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             return new NumberObject(this.value * numberObject.value);
         }
 
-        return super.multiply(object);
+        return super.multiply(scope, object, info);
     }
 
     @Override
-    public XObject<?> divide(XObject<?> object) {
+    public XObject<?> divide(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             return new NumberObject(this.value / numberObject.value);
         }
 
-        return super.divide(object);
+        return super.divide(scope, object, info);
     }
 
     @Override
-    public XObject<?> power(XObject<?> object) {
+    public XObject<?> power(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             return new NumberObject(Math.pow(this.value, numberObject.value));
         }
 
-        return super.power(object);
+        return super.power(scope, object, info);
     }
 
     @Override
-    public boolean lessThan(XObject<?> object) {
+    public boolean lessThan(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             return this.value < numberObject.value;
         }
 
-        return super.lessThan(object);
+        return super.lessThan(scope, object, info);
     }
 
     @Override
-    public boolean lessOrEqual(XObject<?> object) {
+    public boolean lessOrEqual(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             return this.value <= numberObject.value;
         }
 
-        return super.lessThan(object);
+        return super.lessThan(scope, object, info);
     }
 
     @Override
-    public XObject<?> get(String key) {
+    public String type() {
+        return "number";
+    }
+
+    @Override
+    public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
         return switch (key) {
             case "hexInt" -> new StringObject(Integer.toHexString((int) this.value));
             case "floor" -> new NumberObject(Math.floor(this.value));
             case "ceil" -> new NumberObject(Math.ceil(this.value));
             case "round" -> new NumberObject(Math.round(this.value));
-            default -> super.get(key);
+            default -> super.get(scope, key, info);
         };
     }
 }

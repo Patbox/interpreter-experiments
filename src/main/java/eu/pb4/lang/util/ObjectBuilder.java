@@ -20,7 +20,7 @@ public final class ObjectBuilder {
     }
 
     public ObjectBuilder noArg(String name, Runnable function) {
-        this.map.put(name, new JavaFunctionObject(x -> {
+        this.map.put(name, new JavaFunctionObject((scope, args, info) -> {
             function.run();
             return XObject.NULL;
         }));
@@ -28,32 +28,32 @@ public final class ObjectBuilder {
     }
 
     public ObjectBuilder noArg(String name, Supplier<XObject> function) {
-        this.map.put(name, new JavaFunctionObject(x -> {
+        this.map.put(name, new JavaFunctionObject((scope, args, info) -> {
             return function.get();
         }));
         return this;
     }
 
     public ObjectBuilder oneArg(String name, Consumer<XObject<?>> function) {
-        this.map.put(name, new JavaFunctionObject(x -> {
-            function.accept(x[0]);
+        this.map.put(name, new JavaFunctionObject((scope, args, info) -> {
+            function.accept(args[0]);
             return XObject.NULL;
         }));
         return this;
     }
 
     public ObjectBuilder oneArgRet(String name, Function<XObject<?>, XObject<?>> function) {
-        this.map.put(name, new JavaFunctionObject(x -> function.apply(x[0])));
+        this.map.put(name, new JavaFunctionObject((scope, args, info) -> function.apply(args[0])));
         return this;
     }
 
     public ObjectBuilder twoArgRet(String name, BiFunction<XObject<?>, XObject<?>, XObject<?>> function) {
-        this.map.put(name, new JavaFunctionObject(x -> function.apply(x[0], x[1])));
+        this.map.put(name, new JavaFunctionObject((scope, args, info) -> function.apply(args[0], args[1])));
 
         return this;
     }
 
-    public ObjectBuilder varArg(String name, Function<XObject<?>[], XObject<?>> function) {
+    public ObjectBuilder varArg(String name, JavaFunctionObject.Function function) {
         this.map.put(name, new JavaFunctionObject(function));
         return this;
     }

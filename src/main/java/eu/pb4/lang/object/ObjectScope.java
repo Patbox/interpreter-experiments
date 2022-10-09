@@ -1,6 +1,7 @@
 package eu.pb4.lang.object;
 
 import eu.pb4.lang.Runtime;
+import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -103,13 +104,18 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
     }
 
     @Override
-    public XObject<?> get(String key) {
+    public XObject<?> get(ObjectScope scope, String key, Expression.Position info) {
         return this.getVariable(key);
     }
 
     @Override
     public String asString() {
-        return "<this>";
+        return "<object scope>";
+    }
+
+    @Override
+    public String type() {
+        return "object scope";
     }
 
     public XObject<?> getExportObject() {

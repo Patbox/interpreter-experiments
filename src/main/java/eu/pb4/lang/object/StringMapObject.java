@@ -1,5 +1,6 @@
 package eu.pb4.lang.object;
 
+import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -33,23 +34,28 @@ public class StringMapObject extends XObject<Map<String, XObject<?>>>{
     }
 
     @Override
-    public XObject<?> get(String key) {
+    public String type() {
+        return "object";
+    }
+
+    @Override
+    public XObject<?> get(ObjectScope scope, String key, Expression.Position info) {
         return this.map.getOrDefault(key, XObject.NULL);
     }
 
     @Override
-    public XObject<?> get(XObject<?> key) {
-        return this.get(key.asString());
+    public XObject<?> get(ObjectScope scope, XObject<?> key, Expression.Position info) {
+        return this.get(scope, key.asString(), info);
     }
 
     @Override
-    public void set(String key, XObject<?> object) {
+    public void set(ObjectScope scope, String key, XObject<?> object, Expression.Position info) {
         this.map.put(key, object);
     }
 
     @Override
-    public void set(XObject<?> key, XObject<?> object) {
-        this.set(key.asString(), object);
+    public void set(ObjectScope scope, XObject<?> key, XObject<?> object, Expression.Position info) {
+        this.set(scope, key.asString(), object, info);
     }
 
     @Override

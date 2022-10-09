@@ -25,7 +25,7 @@ public class Runtime {
         return scope;
     }
 
-    public RunResult runAndStoreExports(String path, String input) {
+    public RunResult runAndStoreAsImported(String path, String input) {
         var result = this.run(input);
         this.cachedImports.put(path, result.scope.getExportObject());
         return result;
@@ -60,13 +60,13 @@ public class Runtime {
     }
 
     public void defaultGlobals() {
-        scope.declareVariable("print", JavaFunctionObject.ofVoid((args) -> {
+        scope.declareVariable("print", JavaFunctionObject.ofVoid((scope, args, info) -> {
             for (var arg : args) {
                 System.out.println(arg.asString());
             }
         }));
 
-        scope.declareVariable("List", new JavaFunctionObject((args) -> {
+        scope.declareVariable("List", new JavaFunctionObject((scope, args, info) -> {
             var list = new ListObject();
             for (var arg : args) {
                 list.asJava().add(arg);
@@ -75,8 +75,8 @@ public class Runtime {
             return list;
         }));
 
-        scope.declareVariable("Map", new JavaFunctionObject((args) -> new MapObject()));
-        scope.declareVariable("Object", new JavaFunctionObject((args) -> new StringMapObject()));
+        scope.declareVariable("Map", new JavaFunctionObject((scope, args, info) -> new MapObject()));
+        scope.declareVariable("Object", new JavaFunctionObject((scope, args, info) -> new StringMapObject()));
 
         scope.declareVariable("Math", new ObjectBuilder()
                         .twoArgRet("min", (a, b) -> new NumberObject(Math.min(a.asNumber(), b.asNumber())))
@@ -104,7 +104,7 @@ public class Runtime {
     }
 
     //@Nullable
-    public XObject<?> tryImporting(String path) {
+    public XObject<?> importAndRun(String path) {
         var out = this.cachedImports.get(path);
         if (out != null) {
             return out;

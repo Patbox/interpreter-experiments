@@ -3,8 +3,7 @@ package eu.pb4.lang.parser;
 import eu.pb4.lang.exception.InvalidTokenException;
 import eu.pb4.lang.exception.UnexpectedTokenException;
 import eu.pb4.lang.expression.*;
-import eu.pb4.lang.object.NumberObject;
-import eu.pb4.lang.object.XObject;
+import eu.pb4.lang.object.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +25,7 @@ public class ExpressionBuilder {
         while (!this.matcher.isDone()) {
             parseMultiExpression(list::add);
         }
-        list.removeIf(x -> x == Expression.NOOP);
+        //list.removeIf(x -> x == Expression.NOOP);
 
         return list;
     }
@@ -60,7 +59,7 @@ public class ExpressionBuilder {
 
                     if (next.type() == Tokenizer.TokenType.BRACKET_END) {
                         if (this.matcher.peek().type() == Tokenizer.TokenType.FUNCTION_ARROW) {
-                            return new FunctionExpression(args, parseScoped());
+                            return new FunctionExpression(args, parseScoped(), Expression.Position.betweenIn(token, next));
                         }
                         break;
                     } else if (next.type() == Tokenizer.TokenType.COMMA) {
@@ -75,7 +74,7 @@ public class ExpressionBuilder {
                     }
                 } else if (next.type() == Tokenizer.TokenType.BRACKET_END) {
                     if (this.matcher.peek().type() == Tokenizer.TokenType.FUNCTION_ARROW) {
-                        return new FunctionExpression(args, parseScoped());
+                        return new FunctionExpression(args, parseScoped(), Expression.Position.betweenIn(token, next));
                     }
                 } else {
                     break;
@@ -86,30 +85,38 @@ public class ExpressionBuilder {
         }
 
         return switch (token.type()) {
-            case IDENTIFIER, STRING, NUMBER, TRUE, FALSE, NULL, BRACKET_START, INCREASE, DECREASE -> parseValueToken(token);
+            case IDENTIFIER, STRING, NUMBER, TRUE, FALSE, NULL, BRACKET_START, INCREASE, DECREASE, TYPEOF -> parseValueToken(token);
             case EXPORT -> {
-                var next = this.matcher.peek();
+                var start = this.matcher.index();
+                var id = this.matcher.peek();
 
-                if (next.type() == Tokenizer.TokenType.IDENTIFIER) {
-                    yield new ExportExpression((String) next.value(), parseExpression());
-                } else {
-                    throw new UnexpectedTokenException(next, Tokenizer.TokenType.IDENTIFIER);
+                if (id.type() == Tokenizer.TokenType.IDENTIFIER) {
+                    yield new ExportExpression(new StringObject((String) id.value()).asExpression(Expression.Position.from(id)), parseExpression(), Expression.Position.from(token));
+                } else if (id.type() == Tokenizer.TokenType.BRACKET_START) {
+                    this.matcher.index(start);
+                    yield parseValueToken(token);
+                }else {
+                    throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
                 }
             }
 
             case IMPORT -> {
+                var start = this.matcher.index();
                 var id = this.matcher.peek();
                 var path = this.matcher.peek();
 
                 if (id.type() == Tokenizer.TokenType.IDENTIFIER && path.type() == Tokenizer.TokenType.STRING) {
-                    yield new DefineVariableExpression((String) id.value(), new ImportExpression((String) path.value()));
+                    yield new DefineVariableExpression((String) id.value(), new ImportExpression(new StringObject((String) path.value()).asExpression(Expression.Position.from(id)), Expression.Position.from(token)), Expression.Position.from(token));
+                } else if (id.type() == Tokenizer.TokenType.BRACKET_START) {
+                    this.matcher.index(start);
+                    yield parseValueToken(token);
                 } else {
                     throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
                 }
             }
-            case RETURN -> new ReturnExpression(parseEmptyExpression());
-            case CONTINUE -> new LoopSkipExpression(false);
-            case BREAK -> new LoopSkipExpression(true);
+            case RETURN -> new ReturnExpression(parseEmptyExpression(), Expression.Position.from(token));
+            case CONTINUE -> new LoopSkipExpression(false, Expression.Position.from(token));
+            case BREAK -> new LoopSkipExpression(true, Expression.Position.from(token));
             case WHILE -> {
                 var next = this.matcher.peek();
                 Expression expression;
@@ -126,7 +133,7 @@ public class ExpressionBuilder {
 
                 var scope = parseScoped();
 
-                yield new LoopWhileExpression(expression, scope);
+                yield new LoopWhileExpression(expression, scope, Expression.Position.from(token));
             }
 
             case FOR -> {
@@ -163,7 +170,7 @@ public class ExpressionBuilder {
 
                 var scope = parseScoped();
 
-                yield new LoopForExpression(init, expression, post, scope);
+                yield new LoopForExpression(init, expression, post, scope, Expression.Position.from(token));
             }
             case END -> Expression.NOOP;
             default -> throw new UnexpectedTokenException(token, Tokenizer.TokenType.END);
@@ -213,8 +220,10 @@ public class ExpressionBuilder {
         if (list.size() == 1) {
             return (Expression) list.get(0);
         } else {
-            leftTokenAction(list, Tokenizer.TokenType.INCREASE, asSetter((x) -> UnaryExpression.add(x, new NumberObject(1).asExpression()), false));
-            leftTokenAction(list, Tokenizer.TokenType.DECREASE, asSetter((x) -> UnaryExpression.remove(x, new NumberObject(1).asExpression()), false));
+            leftTokenAction(list, Tokenizer.TokenType.TYPEOF, TypeOfExpression::of);
+
+            leftTokenAction(list, Tokenizer.TokenType.INCREASE, asSetter((x) -> UnaryExpression.add(x, new NumberObject(1).asExpression(Expression.Position.EMPTY)), false));
+            leftTokenAction(list, Tokenizer.TokenType.DECREASE, asSetter((x) -> UnaryExpression.remove(x, new NumberObject(1).asExpression(Expression.Position.EMPTY)), false));
 
             mergeIntoOne(list, Tokenizer.TokenType.AND, UnaryExpression::and);
             mergeIntoOne(list, Tokenizer.TokenType.OR, UnaryExpression::or);
@@ -230,7 +239,7 @@ public class ExpressionBuilder {
             mergeIntoOne(list, Tokenizer.TokenType.MORE_OR_EQUAL, UnaryExpression::moreOrEqual);
             mergeIntoOne(list, Tokenizer.TokenType.MORE_THAN, UnaryExpression::moreThan);
             mergeIntoOne(list, Tokenizer.TokenType.EQUAL, UnaryExpression::equal);
-            mergeIntoOne(list, Tokenizer.TokenType.NEGATE_EQUAL, (l, r) -> new NegateExpression(UnaryExpression.equal(l, r)));
+            mergeIntoOne(list, Tokenizer.TokenType.NEGATE_EQUAL, (l, r) -> new NegateExpression(UnaryExpression.equal(l, r), Expression.Position.betweenEx(l.info(), r.info())));
             mergeIntoOne(list, Tokenizer.TokenType.AND_DOUBLE, UnaryExpression::and);
             mergeIntoOne(list, Tokenizer.TokenType.OR_DOUBLE, UnaryExpression::or);
 
@@ -332,13 +341,14 @@ public class ExpressionBuilder {
     }
 
     private void parseValueToken(Tokenizer.Token token, Consumer<Object> unorderedOperations) throws UnexpectedTokenException, InvalidTokenException {
-        if (token.type() == Tokenizer.TokenType.INCREASE || token.type() == Tokenizer.TokenType.DECREASE || token.type() == Tokenizer.TokenType.REMOVE) {
+        if (token.type() == Tokenizer.TokenType.INCREASE || token.type() == Tokenizer.TokenType.DECREASE || token.type() == Tokenizer.TokenType.REMOVE
+                || token.type() == Tokenizer.TokenType.TYPEOF) {
             unorderedOperations.accept(token);
             token = this.matcher.peek();
         }
 
         Expression expression = switch (token.type()) {
-            case IDENTIFIER -> new GetVariableExpression((String) token.value());
+            case IDENTIFIER -> new GetVariableExpression((String) token.value(), Expression.Position.from(token));
             case BRACKET_START -> {
                 var exp = parseExpression();
                 var next = this.matcher.peek();
@@ -348,6 +358,27 @@ public class ExpressionBuilder {
                 } else {
                     throw new UnexpectedTokenException(token, Tokenizer.TokenType.BRACKET_END);
                 }
+            }
+            case IMPORT -> {
+                this.matcher.peek();
+                var x = new ImportExpression(parseExpression(), Expression.Position.from(token));
+                if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
+                    throw new UnexpectedTokenException(token, Tokenizer.TokenType.BRACKET_END);
+                }
+                yield x;
+            }
+            case EXPORT -> {
+                this.matcher.peek();
+                var arg1 = parseExpression();
+                if (this.matcher.peek().type() != Tokenizer.TokenType.COMMA) {
+                    throw new UnexpectedTokenException(token, Tokenizer.TokenType.COMMA);
+                }
+
+                var x = new ExportExpression(arg1, parseExpression(), Expression.Position.from(token));
+                if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
+                    throw new UnexpectedTokenException(token, Tokenizer.TokenType.BRACKET_END);
+                }
+                yield x;
             }
             default -> DirectObjectExpression.fromToken(token);
         };
@@ -359,7 +390,7 @@ public class ExpressionBuilder {
                 case DOT -> {
                     var key = this.matcher.peek();
                     if (key.type() == Tokenizer.TokenType.IDENTIFIER) {
-                        expression = new GetStringExpression(expression, (String) key.value());
+                        expression = new GetStringExpression(expression, (String) key.value(), Expression.Position.from(token));
                     }
                 }
 
@@ -373,18 +404,18 @@ public class ExpressionBuilder {
 
                 case INCREASE -> {
                     expression = expression instanceof SettableExpression settableExpression
-                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.add(expression, new NumberObject(1).asExpression()))
-                            : UnaryExpression.add(expression, new NumberObject(1).asExpression());
+                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.add(expression, new NumberObject(1).asExpression(Expression.Position.EMPTY)))
+                            : UnaryExpression.add(expression, new NumberObject(1).asExpression(Expression.Position.EMPTY));
                 }
 
                 case DECREASE -> {
                     expression = expression instanceof SettableExpression settableExpression
-                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.remove(expression, new NumberObject(1).asExpression()))
-                            : UnaryExpression.remove(expression, new NumberObject(1).asExpression());
+                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.remove(expression, new NumberObject(1).asExpression(Expression.Position.EMPTY)))
+                            : UnaryExpression.remove(expression, new NumberObject(1).asExpression(Expression.Position.EMPTY));
                 }
 
                 case SQR_BRACKET_START -> {
-                    expression = new GetObjectExpression(expression, parseExpression(this.matcher.peek()));
+                    expression = new GetObjectExpression(expression, parseExpression(this.matcher.peek()), Expression.Position.from(token));
 
                     if (this.matcher.peek().type() != Tokenizer.TokenType.SQR_BRACKET_END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.SQR_BRACKET_END);
@@ -405,7 +436,7 @@ public class ExpressionBuilder {
                                     throw new UnexpectedTokenException(nexter, Tokenizer.TokenType.BRACKET_END);
                                 }
 
-                                expression = new CallFunctionException(expression, args.toArray(new Expression[0]));
+                                expression = new CallFunctionException(expression, args.toArray(new Expression[0]), Expression.Position.from(token));
                                 work = false;
                                 break;
                             }
@@ -435,24 +466,24 @@ public class ExpressionBuilder {
 
     private void parseVariableDefinition(Consumer<Expression> consumer) throws UnexpectedTokenException, InvalidTokenException {
         var id = this.matcher.peek();
-        var value = XObject.NULL.asExpression();
+        var value = XObject.NULL.asExpression(Expression.Position.EMPTY);
         if (id.type() == Tokenizer.TokenType.IDENTIFIER) {
             while (true) {
                 var next = this.matcher.peek();
                 if (next.type() == Tokenizer.TokenType.END) {
                     this.matcher.back();
-                    consumer.accept(new DefineVariableExpression((String) id.value(), value));
+                    consumer.accept(new DefineVariableExpression((String) id.value(), value, Expression.Position.betweenIn(id, next)));
                     break;
                 } else if (next.type() == Tokenizer.TokenType.SET) {
                     value = parseExpression();
                 } else if (next.type() == Tokenizer.TokenType.COMMA) {
-                    consumer.accept(new DefineVariableExpression((String) id.value(), value));
+                    consumer.accept(new DefineVariableExpression((String) id.value(), value, Expression.Position.betweenIn(id, next)));
                     id = this.matcher.peek();
                     if (id.type() != Tokenizer.TokenType.IDENTIFIER) {
                         throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
                     }
 
-                    value = XObject.NULL.asExpression();
+                    value = XObject.NULL.asExpression(Expression.Position.EMPTY);
                 }
             }
         } else {

@@ -1,11 +1,12 @@
 package eu.pb4.lang.object;
 
+import eu.pb4.lang.exception.InvalidOperationException;
+import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
 public class BooleanObject extends XObject<Boolean> {
     public static final BooleanObject TRUE = new BooleanObject(true);
     public static final BooleanObject FALSE = new BooleanObject(false);
-
 
     private final Boolean value;
 
@@ -18,12 +19,17 @@ public class BooleanObject extends XObject<Boolean> {
     }
 
     @Override
+    public String type() {
+        return "boolean";
+    }
+
+    @Override
     public String asString() {
         return this.value.toString();
     }
 
     @Override
-    public XObject<?> negate() {
+    public XObject<?> negate(ObjectScope scope, Expression.Position info) {
         return value == Boolean.TRUE ? FALSE : TRUE;
     }
 
@@ -33,20 +39,20 @@ public class BooleanObject extends XObject<Boolean> {
     }
 
     @Override
-    public XObject<?> and(XObject<?> y) {
+    public XObject<?> and(ObjectScope scope, XObject<?> y,  Expression.Position info) throws InvalidOperationException {
         if (y instanceof BooleanObject booleanObject) {
             return of(this.value && booleanObject.value);
         }
 
-        return super.and(y);
+        return super.and(scope, y, info);
     }
 
     @Override
-    public XObject<?> or(XObject<?> y) {
+    public XObject<?> or(ObjectScope scope, XObject<?> y,  Expression.Position info) throws InvalidOperationException {
         if (y instanceof BooleanObject booleanObject) {
             return of(this.value || booleanObject.value);
         }
 
-        return super.and(y);
+        return super.or(scope, y, info);
     }
 }

@@ -1,5 +1,7 @@
 package eu.pb4.lang.object;
 
+import eu.pb4.lang.exception.InvalidOperationException;
+import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -33,17 +35,22 @@ public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
     }
 
     @Override
-    public XObject<?> get(XObject<?> key) {
+    public XObject<?> get(ObjectScope scope, XObject<?> key, Expression.Position info) {
         return this.map.getOrDefault(key, XObject.NULL);
     }
 
     @Override
-    public void set(XObject<?> key, XObject<?> object) {
+    public void set(ObjectScope scope, XObject<?> key, XObject<?> object, Expression.Position info) {
         this.map.put(key, object);
     }
 
     @Override
-    public XObject<?> get(String key) {
+    public String type() {
+        return "map";
+    }
+
+    @Override
+    public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
         return switch (key) {
             case "length", "size" -> new NumberObject(this.map.size());
             case "values" -> new ListObject(this.map.values());
@@ -53,15 +60,15 @@ public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
 
                 for (var entry : this.map.entrySet()) {
                     var entryList = new ListObject();
-                    entryList.add(entry.getKey());
-                    entryList.add(entry.getValue());
+                    entryList.asJava().add(entry.getKey());
+                    entryList.asJava().add(entry.getValue());
                     list.asJava().add(entryList);
                 }
 
                 yield list;
             }
 
-            default -> super.get(key);
+            default -> super.get(scope, key, info);
         };
     }
 
