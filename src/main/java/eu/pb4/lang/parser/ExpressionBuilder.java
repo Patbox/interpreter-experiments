@@ -87,6 +87,26 @@ public class ExpressionBuilder {
 
         return switch (token.type()) {
             case IDENTIFIER, STRING, NUMBER, TRUE, FALSE, NULL, BRACKET_START, INCREASE, DECREASE -> parseValueToken(token);
+            case EXPORT -> {
+                var next = this.matcher.peek();
+
+                if (next.type() == Tokenizer.TokenType.IDENTIFIER) {
+                    yield new ExportExpression((String) next.value(), parseExpression());
+                } else {
+                    throw new UnexpectedTokenException(next, Tokenizer.TokenType.IDENTIFIER);
+                }
+            }
+
+            case IMPORT -> {
+                var id = this.matcher.peek();
+                var path = this.matcher.peek();
+
+                if (id.type() == Tokenizer.TokenType.IDENTIFIER && path.type() == Tokenizer.TokenType.STRING) {
+                    yield new DefineVariableExpression((String) id.value(), new ImportExpression((String) path.value()));
+                } else {
+                    throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
+                }
+            }
             case RETURN -> new ReturnExpression(parseEmptyExpression());
             case CONTINUE -> new LoopSkipExpression(false);
             case BREAK -> new LoopSkipExpression(true);

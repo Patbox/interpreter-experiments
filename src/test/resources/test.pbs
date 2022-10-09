@@ -7,8 +7,11 @@ var test = (x) -> x * 2;
 
 (() -> { return 8; })();
 
-
 print((2 * 5 + 8) ^ 2 * 2);
+
+export test 98.5;
+export test2 0xFF;
+
 print(2 * (5 * 2 + 8) ^ 2);
 
 var o = 0;
@@ -47,3 +50,10 @@ for var i = 0; i < table.length; i++ {
 print(Math.random() > 0.3 || Math.random() < -0.3);
 
 print(Global.Math);
+
+
+import Test "testjar:test2";
+
+print(Test.get());
+Test.set("Everyone!");
+print(Test.get());

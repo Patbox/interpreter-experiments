@@ -7,30 +7,48 @@ import eu.pb4.lang.parser.ExpressionMatcher;
 import eu.pb4.lang.parser.StringReader;
 import eu.pb4.lang.parser.Tokenizer;
 import eu.pb4.lang.util.ObjectBuilder;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 
 public class Runtime {
-    private final ObjectScope scope = new ObjectScope(null);
+    private final ObjectScope scope = new ObjectScope(this, null, ObjectScope.Type.GLOBAL);
+
+    private final List<Function<String, @Nullable XObject<?>>> importResolvers = new ArrayList<>();
+    private final Map<String, XObject<?>> cachedImports = new HashMap<>();
 
     public ObjectScope getScope() {
         return scope;
     }
 
-    public XObject<?> run(String input) {
+    public RunResult runAndStoreExports(String path, String input) {
+        var result = this.run(input);
+        this.cachedImports.put(path, result.scope.getExportObject());
+        return result;
+    }
+
+    public RunResult run(String input) {
         try {
-            var list = new ExpressionBuilder(new ExpressionMatcher(new Tokenizer(new StringReader(input)).getTokens())).build();
+            var tokens = new Tokenizer(new StringReader(input)).getTokens();
+
+            var list = new ExpressionBuilder(new ExpressionMatcher(tokens)).build();
 
             XObject<?> lastObject = XObject.NULL;
-            var scope = new ObjectScope(this.scope);
+            var scope = new ObjectScope(this, this.scope, ObjectScope.Type.SCRIPT);
 
             for (var expression : list) {
                 lastObject = expression.execute(scope);
 
                 if (lastObject instanceof ForceReturnObject forceReturnObject) {
-                    return forceReturnObject.asJava();
+                    return new RunResult(forceReturnObject.asJava(), scope);
                 }
             }
 
-            return lastObject;
+            return new RunResult(lastObject, scope);
         } catch (Throwable e) {
             if (e instanceof ScriptConsumer consumer) {
                 consumer.supplyInput(input);
@@ -38,7 +56,7 @@ public class Runtime {
             e.printStackTrace();
         }
 
-        return XObject.NULL;
+        return new RunResult(XObject.NULL, scope);
     }
 
     public void defaultGlobals() {
@@ -80,4 +98,26 @@ public class Runtime {
 
         scope.declareVariable("Global", scope);
     }
+
+    public void registerImporter(Function<String, @Nullable XObject<?>> importer) {
+        this.importResolvers.add(importer);
+    }
+
+    //@Nullable
+    public XObject<?> tryImporting(String path) {
+        var out = this.cachedImports.get(path);
+        if (out != null) {
+            return out;
+        }
+
+        for (var importer : this.importResolvers) {
+            out = importer.apply(path);
+            if (out != null) {
+                return out;
+            }
+        }
+        return XObject.NULL;
+    }
+
+    public record RunResult(XObject<?> object, ObjectScope scope) {}
 }

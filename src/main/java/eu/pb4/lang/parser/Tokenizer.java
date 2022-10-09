@@ -1,5 +1,7 @@
 package eu.pb4.lang.parser;
 
+import eu.pb4.lang.exception.InvalidTokenException;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,11 +14,11 @@ public class Tokenizer {
     }
 
 
-    public List<Token> getTokens() {
+    public List<Token> getTokens() throws InvalidTokenException {
         var list = new ArrayList<Token>();
-
         main:
         while (!this.reader.isDone()) {
+
             StringReader.Result<?> result = this.reader.readIdentifier();
             if (result != null) {
                 var type = switch ((String) result.value()) {
@@ -32,6 +34,9 @@ public class Tokenizer {
                     case "var" -> TokenType.DECLARE_VAR;
                     case "break" -> TokenType.BREAK;
                     case "continue" -> TokenType.CONTINUE;
+                    case "export" -> TokenType.EXPORT;
+                    case "import" -> TokenType.IMPORT;
+                    case "class" -> TokenType.CLASS;
                     default -> TokenType.IDENTIFIER;
                 };
 
@@ -45,7 +50,6 @@ public class Tokenizer {
                 list.add(new Token(result.value(), TokenType.STRING, result.from(), result.to()));
                 continue;
             }
-
             result = this.reader.readString('\'');
             if (result != null) {
                 list.add(new Token(result.value(), TokenType.STRING, result.from(), result.to()));
@@ -153,12 +157,11 @@ public class Tokenizer {
                         list.add(new Token(null, type, start, this.reader.index()));
                         continue;
                     } else {
-                        throw new RuntimeException("Invalid character at " + start + " \"" + Character.toString(i) + "\"");
+                        throw new InvalidTokenException(start, i);
                     }
                 }
             }
         }
-
 
         return list;
     }
@@ -217,6 +220,9 @@ public class Tokenizer {
         FOR,
         WHILE,
         DO,
+        EXPORT,
+        IMPORT,
+        CLASS,
 
         CONTINUE,
         BREAK,

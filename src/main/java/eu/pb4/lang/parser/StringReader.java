@@ -104,39 +104,87 @@ public class StringReader {
         return null;
     }
 
+    private boolean isNumber(int val, int type) {
+        if (type <= 10) {
+            return val >= '0' && val <= '0' + (type - 1);
+        } else {
+            return (val >= '0' && val <= '9') || (val >= 'a' && val <= 'a' + (type - 1)) || (val >= 'A' && val <= 'A' + (type - 1));
+        }
+    }
+
     @Nullable
     public Result<Double> readDouble() {
-        var builder = new StringBuilder();
-        int start = this.index;
-        boolean initiated = false;
-        double value = 0;
+        if (!this.isDone()) {
+            var builder = new StringBuilder();
+            int start = this.index;
+            boolean hasDot = false;
+            int type = 10;
 
-        boolean isHex = false;
-
-        while (!this.isDone()) {
-            int i = this.peek();
-            if (i == 'x' && builder.length() == 1 && builder.charAt(0) == '0') {
-                builder = new StringBuilder();
-                i = this.peek();
-                isHex = true;
-            } else if (i == '-' && builder.length() == 0) {
-                builder.append(Character.toChars(i));
-                i = this.peek();
+            var val = this.peek();
+            if (val == '-') {
+                builder.append('-');
+                val = this.peek();
             }
 
-            builder.append(Character.toChars(i));
-            try {
-                value = isHex ? Integer.parseInt(builder.toString(), 16) : Double.parseDouble(builder.toString());
-                initiated = true;
-            } catch (Throwable throwable) {
-                if (initiated) {
+            if (val == '0') {
+                val = this.peek();
+                if (val == 'x') {
+                    type = 16;
+                } else if (val == 'b') {
+                    type = 2;
+                } else if (val == '.') {
+                    hasDot = true;
+                    builder.append('0');
+                    builder.append('.');
+                } else if (isNumber(val, type)) {
+                    builder.append('0');
+                    builder.append((char) val);
+                } else {
                     this.back();
-                    return new Result<>(start, this.index, value);
+                    return new Result<>(start, this.index, Double.valueOf(0));
+                }
+            } else if (isNumber(val, type)) {
+                builder.append((char) val);
+            } else if (val == '.') {
+                val = this.peek();
+                if (isNumber(val, type) && type == 10) {
+                    hasDot = true;
+                    builder.append('0');
+                    builder.append('.');
+                    builder.append((char) val);
+                } else {
+                    this.index(start);
+                    return null;
+                }
+            } else {
+                this.index(start);
+                return null;
+            }
+
+            while (!this.isDone()) {
+                val = this.peek();
+                if (this.isNumber(val, type)) {
+                    builder.append((char) val);
+                } else if (val == '.' && !hasDot && type == 10) {
+                    hasDot = true;
+                    builder.append('.');
+                } else {
+                    this.back();
+                    try {
+                        return new Result<>(start, this.index, hasDot ? Double.parseDouble(builder.toString()) : Integer.parseInt(builder.toString(), type));
+                    } catch (NumberFormatException e) {
+                        this.index(start);
+                        return null;
+                    }
                 }
             }
-        }
 
-        this.index(start);
+            try {
+                return new Result<>(start, this.index, hasDot ? Double.parseDouble(builder.toString()) : Integer.parseInt(builder.toString(), type));
+            } catch (NumberFormatException e) {
+                this.index(start);
+            }
+        }
         return null;
     }
 

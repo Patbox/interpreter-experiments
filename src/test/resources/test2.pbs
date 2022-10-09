@@ -1,0 +1,11 @@
+var hello = "world";
+
+print("Loaded test2 file!");
+
+export get () -> {
+    return hello;
+};
+
+export set (val) -> {
+    hello = val;
+};

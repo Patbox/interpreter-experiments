@@ -1,8 +1,6 @@
 package eu.pb4.lang.test;
 
 import eu.pb4.lang.Runtime;
-import eu.pb4.lang.parser.StringReader;
-import eu.pb4.lang.parser.Tokenizer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,13 +11,27 @@ public class Main {
         var input = Files.readString(Path.of(Main.class.getClassLoader().getResource("test.pbs").toURI()));
 
 
-        for (var token : new Tokenizer(new StringReader(input)).getTokens()) {
+        /*for (var token : new Tokenizer(new StringReader(input)).getTokens()) {
             System.out.println(token);
-        }
+        }*/
 
         var runtime = new Runtime();
         runtime.defaultGlobals();
+        runtime.registerImporter((x) -> {
+            if (x.startsWith("testjar:")) {
+                try {
+                    return runtime.runAndStoreExports(x, Files.readString(Path.of(Main.class.getClassLoader().getResource( x.substring("testjar:".length() )+ ".pbs").toURI()))).scope().getExportObject();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            return null;
+        });
         runtime.getScope().freeze();
-        System.out.println(runtime.run(input));
+        var time = System.currentTimeMillis();
+        runtime.run(input);
+        System.out.println("Time: " + (System.currentTimeMillis() - time));
+
     }
 }
