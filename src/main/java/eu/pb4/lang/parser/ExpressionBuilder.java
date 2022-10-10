@@ -85,7 +85,8 @@ public class ExpressionBuilder {
         }
 
         return switch (token.type()) {
-            case IDENTIFIER, STRING, NUMBER, TRUE, FALSE, NULL, BRACKET_START, INCREASE, DECREASE, TYPEOF -> parseValueToken(token);
+            case IDENTIFIER, STRING, NUMBER, TRUE, FALSE, NULL, BRACKET_START, SQR_BRACKET_START, SCOPE_START, INCREASE, DECREASE, TYPEOF -> parseValueToken(token);
+
             case EXPORT -> {
                 var start = this.matcher.index();
                 var id = this.matcher.peek();
@@ -142,6 +143,28 @@ public class ExpressionBuilder {
                 Expression expression;
                 Expression post;
                 if (next.type() == Tokenizer.TokenType.BRACKET_START) {
+
+                    {
+                        var start = this.matcher.index();
+
+                        var varToken = this.matcher.peek();
+                        var idToken = this.matcher.peek();
+                        var colonToken = this.matcher.peek();
+                        if (varToken.type() == Tokenizer.TokenType.DECLARE_VAR
+                                && idToken.type() == Tokenizer.TokenType.IDENTIFIER
+                                && colonToken.type() == Tokenizer.TokenType.COLON
+                        ) {
+                            var iterator = parseExpression();
+                            if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
+                                throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
+                            }
+                            var scope = parseScoped();
+                            yield new LoopForEachExpression((String) idToken.value(), iterator, scope, Expression.Position.from(token));
+                        }
+
+                        this.matcher.index(start);
+                    }
+
                     parseMultiExpression(init::add);
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.END);
@@ -157,6 +180,23 @@ public class ExpressionBuilder {
                     }
                 } else {
                     this.matcher.back();
+
+                    {
+                        var start = this.matcher.index();
+
+                        var varToken = this.matcher.peek();
+                        var idToken = this.matcher.peek();
+                        var colonToken = this.matcher.peek();
+                        if (varToken.type() == Tokenizer.TokenType.DECLARE_VAR
+                                && idToken.type() == Tokenizer.TokenType.IDENTIFIER
+                                && colonToken.type() == Tokenizer.TokenType.COLON
+                        ) {
+                            yield new LoopForEachExpression((String) idToken.value(), parseExpression(), parseScoped(), Expression.Position.from(token));
+                        }
+
+                        this.matcher.index(start);
+                    }
+
                     parseMultiExpression(init::add);
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.END);
@@ -168,9 +208,7 @@ public class ExpressionBuilder {
                     post = parseExpression();
                 }
 
-                var scope = parseScoped();
-
-                yield new LoopForExpression(init, expression, post, scope, Expression.Position.from(token));
+                yield new LoopForExpression(init, expression, post, parseScoped(), Expression.Position.from(token));
             }
             case END -> Expression.NOOP;
             default -> throw new UnexpectedTokenException(token, Tokenizer.TokenType.END);
@@ -359,6 +397,84 @@ public class ExpressionBuilder {
                     throw new UnexpectedTokenException(token, Tokenizer.TokenType.BRACKET_END);
                 }
             }
+            case SQR_BRACKET_START -> {
+                Tokenizer.Token next;
+
+                var val = new ArrayList<Expression>();
+
+                while ((next = this.matcher.peek()).type() != Tokenizer.TokenType.SQR_BRACKET_END && !this.matcher.isDone()) {
+                    this.matcher.back();
+                    val.add(parseExpression());
+                    next = this.matcher.peek();
+                    if (next.type() == Tokenizer.TokenType.SQR_BRACKET_END) {
+                        yield new ListExpression(val.toArray(new Expression[0]), Expression.Position.betweenIn(token, next));
+                    } else if (next.type() != Tokenizer.TokenType.COMMA) {
+                        throw new UnexpectedTokenException(next, Tokenizer.TokenType.COMMA);
+                    }
+                }
+
+                if (next.type() == Tokenizer.TokenType.SQR_BRACKET_END) {
+                    yield new DirectObjectExpression(new ListObject(), Expression.Position.betweenIn(token, next));
+                } else {
+                    throw new UnexpectedTokenException(next, Tokenizer.TokenType.SQR_BRACKET_END);
+                }
+            }
+
+            case SCOPE_START -> {
+                Tokenizer.Token next;
+                var val = new ArrayList<Expression[]>();
+                boolean isMap = false;
+                if (this.matcher.peek().type() == Tokenizer.TokenType.SCOPE_START) {
+                    isMap = true;
+                } else {
+                    this.matcher.back();
+                }
+
+                while ((next = this.matcher.peek()).type() != Tokenizer.TokenType.SCOPE_END && !this.matcher.isDone()) {
+                        this.matcher.back();
+                    var pair = new Expression[2];
+                        pair[0] = parseExpression();
+
+                        if (this.matcher.peek().type() != Tokenizer.TokenType.COLON) {
+                            throw new UnexpectedTokenException(next, Tokenizer.TokenType.COLON);
+                        }
+
+                        pair[1] = parseExpression();
+
+                        val.add(pair);
+
+                        next = this.matcher.peek();
+                        if (next.type() == Tokenizer.TokenType.SCOPE_END) {
+                            if (isMap) {
+                                if ((next = this.matcher.peek()).type() == Tokenizer.TokenType.SCOPE_END) {
+                                    yield new MapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next));
+                                } else {
+                                    throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
+                                }
+                            } else {
+                                yield new StringMapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next));
+                            }
+                        } else if (next.type() != Tokenizer.TokenType.COMMA) {
+                            throw new UnexpectedTokenException(next, Tokenizer.TokenType.COMMA);
+                        }
+                    }
+
+                    if (next.type() == Tokenizer.TokenType.SCOPE_END) {
+                        if (isMap) {
+                            if ((next = this.matcher.peek()).type() == Tokenizer.TokenType.SCOPE_END) {
+                                yield new DirectObjectExpression(new MapObject(), Expression.Position.betweenIn(token, next));
+                            } else {
+                                throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
+                            }
+                        } else {
+                            yield new DirectObjectExpression(new StringMapObject(), Expression.Position.betweenIn(token, next));
+                        }
+                    } else {
+                        throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
+                    }
+
+            }
+
             case IMPORT -> {
                 this.matcher.peek();
                 var x = new ImportExpression(parseExpression(), Expression.Position.from(token));

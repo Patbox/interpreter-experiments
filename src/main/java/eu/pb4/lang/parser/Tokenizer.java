@@ -150,6 +150,7 @@ public class Tokenizer {
                             case ',' -> TokenType.COMMA;
                             case '<' -> TokenType.LESS_THAN;
                             case '>' -> TokenType.MORE_THAN;
+                            case ':' -> TokenType.COLON;
                             default -> null;
                         };
                     }
@@ -198,6 +199,8 @@ public class Tokenizer {
         NEGATE_EQUAL,
         SET,
         EQUAL,
+
+        COLON,
 
         AND,
         AND_DOUBLE,

@@ -28,7 +28,7 @@ public class InvalidTokenException extends Exception implements ScriptConsumer {
             return "Invalid character \"" + Character.toString(this.character) + "\" at index " + this.start + "!";
         } else {
             var val = GenUtils.getLineAndChar(this.start, this.input);
-            return "Invalid character \"" + Character.toString(this.character) + "\" at line " + val[0] + " position " + val[1] + " (\"" + GenUtils.getSubString(this.input, this.start - 10, this.start + 10) + "\")!";
+            return "Invalid character \"" + Character.toString(this.character) + "\" at line " + val[0] + " position " + val[1] + " (\"" + GenUtils.getSubStringWithoutNewLines(this.input, this.start - 10, this.start + 10) + "\")!";
         }
     }
 }

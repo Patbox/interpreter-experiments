@@ -19,7 +19,7 @@ public class GenUtils {
         return new int[] { line, pos };
     }
 
-    public static String getSubString(String string, int start, int stop) {
-        return string.substring(Math.max(0, start), Math.min(stop, string.length()));
+    public static String getSubStringWithoutNewLines(String string, int start, int stop) {
+        return string.substring(Math.max(0, start), Math.min(stop, string.length())).replace("\n", " | ");
     }
 }

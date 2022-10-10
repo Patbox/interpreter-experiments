@@ -25,7 +25,7 @@ public class Runtime {
         return scope;
     }
 
-    public RunResult runAndStoreAsImported(String path, String input) {
+    public RunResult importAndRun(String path, String input) {
         var result = this.run(input);
         this.cachedImports.put(path, result.scope.getExportObject());
         return result;

@@ -17,10 +17,11 @@ public class Main {
 
         var runtime = new Runtime();
         runtime.defaultGlobals();
+
         runtime.registerImporter((x) -> {
             if (x.startsWith("testjar:")) {
                 try {
-                    return runtime.runAndStoreAsImported(x, Files.readString(Path.of(Main.class.getClassLoader().getResource( x.substring("testjar:".length() )+ ".pbs").toURI()))).scope().getExportObject();
+                    return runtime.importAndRun(x, Files.readString(Path.of(Main.class.getClassLoader().getResource( x.substring("testjar:".length() )+ ".pbs").toURI()))).scope().getExportObject();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -28,7 +29,9 @@ public class Main {
 
             return null;
         });
+
         runtime.getScope().freeze();
+
         var time = System.currentTimeMillis();
         runtime.run(input);
         runtime.importAndRun("testjar:invalid");

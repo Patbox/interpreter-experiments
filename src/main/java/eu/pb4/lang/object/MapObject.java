@@ -5,6 +5,7 @@ import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
@@ -45,6 +46,11 @@ public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
     }
 
     @Override
+    public Iterator<XObject<?>> iterator(ObjectScope scope, Expression.Position info) throws InvalidOperationException {
+        return new MapIterator(this.map.entrySet().iterator());
+    }
+
+    @Override
     public String type() {
         return "map";
     }
@@ -75,5 +81,21 @@ public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
     @Override
     public @Nullable Map<XObject<?>, XObject<?>> asJava() {
         return this.map;
+    }
+
+    private record MapIterator(Iterator<Map.Entry<XObject<?>, XObject<?>>> iterator) implements Iterator<XObject<?>> {
+        @Override
+        public boolean hasNext() {
+            return this.iterator.hasNext();
+        }
+
+        @Override
+        public XObject<?> next() {
+            var next = this.iterator.next();
+            var list = new ListObject();
+            list.asJava().add(next.getKey());
+            list.asJava().add(next.getValue());
+            return list;
+        }
     }
 }

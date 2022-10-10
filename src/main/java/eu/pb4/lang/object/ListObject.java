@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 
 public class ListObject extends XObject<List<XObject<?>>> {
@@ -93,6 +94,11 @@ public class ListObject extends XObject<List<XObject<?>>> {
 
             default -> super.get(scope, key, info);
         };
+    }
+
+    @Override
+    public Iterator<XObject<?>> iterator(ObjectScope scope, Expression.Position info) throws InvalidOperationException {
+        return this.list.iterator();
     }
 
     @Override

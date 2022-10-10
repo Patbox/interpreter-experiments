@@ -5,6 +5,7 @@ import eu.pb4.lang.expression.DirectObjectExpression;
 import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Iterator;
 import java.util.Objects;
 
 public abstract class XObject<T> {
@@ -87,8 +88,9 @@ public abstract class XObject<T> {
     }
 
     public XObject<?> get(ObjectScope scope, XObject<?> key, Expression.Position info) throws InvalidOperationException {
-        throw new InvalidOperationException(info, this.type() + "'sdoesn't contain entry '" + key.asString() + "' (" + key.type() + ")");
+        throw new InvalidOperationException(info, this.type() + "'s doesn't contain entry '" + key.asString() + "' (" + key.type() + ")");
     }
+
 
     public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
         if (key.equals("string")) {
@@ -113,6 +115,10 @@ public abstract class XObject<T> {
 
     public XObject<?> or(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         throw new InvalidOperationException(info, "'or' operator of " + this.type() + " with " + object.type());
+    }
+
+    public Iterator<XObject<?>> iterator(ObjectScope scope, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, this.type() + " isn't iterable");
     }
 
     @Override

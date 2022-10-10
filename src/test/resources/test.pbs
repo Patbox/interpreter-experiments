@@ -20,21 +20,24 @@ print(++o + 10);
 print(o++ + 10);
 print(o);
 
-var map = Map();
+var map = {{
+    true: false
+}};
 
-map[true] = false;
 map[null] = null;
 map[3] = 85;
 
-print(map);
+print(typeof map, map);
 
-var obj = Object();
+var obj = {
+    test: 5,
+    another: "one"
+};
 
-obj.test = 5;
 obj[9] = "test";
 obj["hello"] = "world";
 
-print(obj);
+print(typeof obj, obj);
 
 var table = List();
 
@@ -42,9 +45,9 @@ for var i = 0; i < 32; ++i {
     table.add(Math.sin(i / Math.PI));
 }
 
-for var i = 0; i < table.length; i++ {
+for var i : table {
     var value = table[i];
-    print(i + " | " + (" " * ((value + 1) * 10)) + "#");
+    print(" | " + (" " * ((i + 1) * 10)) + "#");
 }
 
 print(Math.random() > 0.3 || Math.random() < -0.3);
@@ -58,10 +61,4 @@ print(Test.get());
 Test.set("Everyone!");
 print(import("testjar:test2").get());
 
-print(typeof obj);
-print(typeof map);
-print(typeof table);
-print(typeof 0xFF);
-print(typeof "hello");
-print(typeof Global);
-print(typeof print);
+print([ typeof Object(), typeof Map(), typeof List(), typeof 0xFF, typeof "hello", typeof Global, typeof print ]);

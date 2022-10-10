@@ -9,7 +9,7 @@ public class InvalidOperationException extends Exception implements ScriptConsum
 
     private String input;
 
-    public InvalidOperationException(Expression.Position position,  String operation) {
+    public InvalidOperationException(Expression.Position position, String operation) {
         this.position = position;
         this.operation = operation;
     }
@@ -24,7 +24,7 @@ public class InvalidOperationException extends Exception implements ScriptConsum
             return "Invalid operation '" + this.operation + "' at index" + position.start() + "/" + position.end() + "!";
         } else {
             var val = GenUtils.getLineAndChar(position.start(), this.input);
-            return "Invalid operation '" + this.operation + "' at line " + val[0] + " position " + val[1] + " (\"" + GenUtils.getSubString(this.input, position.start() - 10, position.end() + 10) + "\")!";
+            return "Invalid operation '" + this.operation + "' at line " + val[0] + " position " + val[1] + " (\"" + GenUtils.getSubStringWithoutNewLines(this.input, position.start() - 10, position.end() + 10) + "\")!";
         }
     }
 }

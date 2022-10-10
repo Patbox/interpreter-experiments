@@ -25,7 +25,7 @@ public class UnexpectedTokenException extends Exception implements ScriptConsume
                     + this.tokenTypeRequired + " Found: " + this.tokenFound.type();
         } else {
             var val = GenUtils.getLineAndChar(tokenFound.start(), this.input);
-            return "Invalid token '" + this.input.substring(tokenFound.start(), tokenFound.end() + 1) + "' at line " + val[0] + " position " + val[1] + " (\"" + GenUtils.getSubString(this.input, tokenFound.start() - 10, tokenFound.end() + 10) + "\")! Required: "
+            return "Invalid token '" + this.input.substring(tokenFound.start(), tokenFound.end() + 1) + "' at line " + val[0] + " position " + val[1] + " (\"" + GenUtils.getSubStringWithoutNewLines(this.input, tokenFound.start() - 10, tokenFound.end() + 10) + "\")! Required: "
                     + this.tokenTypeRequired + " Found: " + this.tokenFound.type();
         }
     }
