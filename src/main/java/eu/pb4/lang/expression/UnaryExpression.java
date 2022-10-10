@@ -61,6 +61,18 @@ public record UnaryExpression(Expression left, Expression right, Function functi
         return new UnaryExpression(left, right, (s, x, y, i) -> x.or(s, y, i), Position.betweenEx(left.info(), right.info()));
     }
 
+    public static Expression divideRest(Expression left, Expression right) {
+        return new UnaryExpression(left, right, (s, x, y, i) -> x.divideRest(s, y, i), Position.betweenEx(left.info(), right.info()));
+    }
+
+    public static Expression shiftRight(Expression left, Expression right) {
+        return new UnaryExpression(left, right, (s, x, y, i) -> x.shiftRight(s, y, i), Position.betweenEx(left.info(), right.info()));
+    }
+
+    public static Expression shiftLeft(Expression left, Expression right) {
+        return new UnaryExpression(left, right, (s, x, y, i) -> x.shiftLeft(s, y, i), Position.betweenEx(left.info(), right.info()));
+    }
+
     public interface Function {
         XObject<?> apply(ObjectScope scope, XObject<?> left, XObject<?> right, Position info) throws InvalidOperationException;
     }

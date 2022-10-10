@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.Objects;
 
 public abstract class XObject<T> {
-
     public static final XObject<?> NULL = new XObject<>() {
         @Override
         public String asString() {
@@ -17,10 +16,33 @@ public abstract class XObject<T> {
         }
 
         @Override
+        public String type() {
+            return "null";
+        }
+
+        @Override
         public Object asJava() {
             return null;
         }
     };
+
+    public static final XObject<?> VOID = new XObject<>() {
+        @Override
+        public String asString() {
+            return "<void>";
+        }
+
+        @Override
+        public String type() {
+            return "void";
+        }
+
+        @Override
+        public Object asJava() {
+            return null;
+        }
+    };
+
     private StringObject toStringValue;
 
     @Nullable
@@ -126,9 +148,26 @@ public abstract class XObject<T> {
         return Objects.hash(this.asJava());
     }
 
-    public double asNumber() {
-        throw new UnsupportedOperationException("This object isn't a number");
+    public double asDouble() {
+        throw new UnsupportedOperationException(this.getClass() + " / " + this.type() + " isn't a number!");
     }
 
     public abstract String asString();
+
+    public int asInt() {
+        return (int) this.asDouble();
+    }
+
+
+    public XObject<?> divideRest(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "rest division of " + this.type() + " with " + object.type());
+    }
+
+    public XObject<?> shiftRight(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "shifting right of " + this.type() + " with " + object.type());
+    }
+
+    public XObject<?> shiftLeft(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, "shifting right of " + this.type() + " with " + object.type());
+    }
 }

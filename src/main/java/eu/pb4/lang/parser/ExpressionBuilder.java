@@ -25,7 +25,7 @@ public class ExpressionBuilder {
         while (!this.matcher.isDone()) {
             parseMultiExpression(list::add);
         }
-        //list.removeIf(x -> x == Expression.NOOP);
+        list.removeIf(x -> x == Expression.NOOP);
 
         return list;
     }
@@ -86,6 +86,9 @@ public class ExpressionBuilder {
 
         return switch (token.type()) {
             case IDENTIFIER, STRING, NUMBER, TRUE, FALSE, NULL, BRACKET_START, SQR_BRACKET_START, SCOPE_START, INCREASE, DECREASE, TYPEOF -> parseValueToken(token);
+            case NEGATE, REMOVE -> new NegateExpression(parseExpression(), Expression.Position.from(token));
+
+            case ASYNC -> new AsyncExpression(parseScoped(), Expression.Position.from(token));
 
             case EXPORT -> {
                 var start = this.matcher.index();
@@ -96,7 +99,7 @@ public class ExpressionBuilder {
                 } else if (id.type() == Tokenizer.TokenType.BRACKET_START) {
                     this.matcher.index(start);
                     yield parseValueToken(token);
-                }else {
+                } else {
                     throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
                 }
             }
@@ -128,7 +131,6 @@ public class ExpressionBuilder {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
                     }
                 } else {
-                    this.matcher.back();
                     expression = parseExpression(next);
                 }
 
@@ -136,6 +138,8 @@ public class ExpressionBuilder {
 
                 yield new LoopWhileExpression(expression, scope, Expression.Position.from(token));
             }
+
+            case IF -> parseIf();
 
             case FOR -> {
                 var next = this.matcher.peek();
@@ -166,6 +170,7 @@ public class ExpressionBuilder {
                     }
 
                     parseMultiExpression(init::add);
+                    init.removeIf(x -> x == Expression.NOOP);
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.END);
                     }
@@ -198,6 +203,7 @@ public class ExpressionBuilder {
                     }
 
                     parseMultiExpression(init::add);
+                    init.removeIf(x -> x == Expression.NOOP);
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.END);
                     }
@@ -206,6 +212,7 @@ public class ExpressionBuilder {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.END);
                     }
                     post = parseExpression();
+
                 }
 
                 yield new LoopForExpression(init, expression, post, parseScoped(), Expression.Position.from(token));
@@ -213,6 +220,36 @@ public class ExpressionBuilder {
             case END -> Expression.NOOP;
             default -> throw new UnexpectedTokenException(token, Tokenizer.TokenType.END);
         };
+    }
+
+    private Expression parseIf() throws UnexpectedTokenException, InvalidTokenException {
+        var next = this.matcher.peek();
+        Expression expression;
+        if (next.type() == Tokenizer.TokenType.BRACKET_START) {
+            expression = parseExpression();
+
+            if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
+                throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
+            }
+        } else {
+            expression = parseExpression(next);
+        }
+
+        var scope = parseScoped();
+
+        next = this.matcher.peek();
+        if (next.type() == Tokenizer.TokenType.ELSE) {
+            if (this.matcher.peek().type() == Tokenizer.TokenType.IF) {
+                this.matcher.back();
+                return new IfElseExpression(expression, scope, List.of(parseIf()), Expression.Position.from(next));
+            } else {
+                this.matcher.back();
+                return new IfElseExpression(expression, scope, parseScoped(), Expression.Position.from(next));
+            }
+        } else {
+            this.matcher.back();
+            return new IfElseExpression(expression, scope, List.of(), Expression.Position.from(next));
+        }
     }
 
     private Expression parseEmptyExpression() throws UnexpectedTokenException, InvalidTokenException {
@@ -238,6 +275,8 @@ public class ExpressionBuilder {
                 } else {
                     this.matcher.back();
                     parseMultiExpression(list::add);
+                    list.removeIf(x -> x == Expression.NOOP);
+
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
                     }
@@ -258,35 +297,40 @@ public class ExpressionBuilder {
         if (list.size() == 1) {
             return (Expression) list.get(0);
         } else {
-            leftTokenAction(list, Tokenizer.TokenType.TYPEOF, TypeOfExpression::of);
+            mergeLeftTokenExpression(list, Tokenizer.TokenType.TYPEOF, TypeOfExpression::of);
 
-            leftTokenAction(list, Tokenizer.TokenType.INCREASE, asSetter((x) -> UnaryExpression.add(x, new NumberObject(1).asExpression(Expression.Position.EMPTY)), false));
-            leftTokenAction(list, Tokenizer.TokenType.DECREASE, asSetter((x) -> UnaryExpression.remove(x, new NumberObject(1).asExpression(Expression.Position.EMPTY)), false));
+            mergeLeftTokenExpression(list, Tokenizer.TokenType.INCREASE, asSetter((x) -> UnaryExpression.add(x, new NumberObject(1).asExpression(Expression.Position.EMPTY)), false));
+            mergeLeftTokenExpression(list, Tokenizer.TokenType.DECREASE, asSetter((x) -> UnaryExpression.remove(x, new NumberObject(1).asExpression(Expression.Position.EMPTY)), false));
 
-            mergeIntoOne(list, Tokenizer.TokenType.AND, UnaryExpression::and);
-            mergeIntoOne(list, Tokenizer.TokenType.OR, UnaryExpression::or);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.AND, UnaryExpression::and);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.OR, UnaryExpression::or);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.SHIFT_LEFT, UnaryExpression::shiftLeft);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.SHIFT_RIGHT, UnaryExpression::shiftRight);
 
-            mergeIntoOne(list, Tokenizer.TokenType.POWER, UnaryExpression::power);
-            mergeIntoOne(list, Tokenizer.TokenType.MULTIPLY, UnaryExpression::multiply);
-            mergeIntoOne(list, Tokenizer.TokenType.DIVIDE, UnaryExpression::divide);
-            mergeIntoOne(list, Tokenizer.TokenType.ADD, UnaryExpression::add);
-            mergeIntoOne(list, Tokenizer.TokenType.REMOVE, UnaryExpression::remove);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.POWER, UnaryExpression::power);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.MULTIPLY, UnaryExpression::multiply);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE, UnaryExpression::divide);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE_REST, UnaryExpression::divideRest);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.ADD, UnaryExpression::add);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.REMOVE, UnaryExpression::remove);
 
-            mergeIntoOne(list, Tokenizer.TokenType.LESS_OR_EQUAL, UnaryExpression::lessOrEqual);
-            mergeIntoOne(list, Tokenizer.TokenType.LESS_THAN, UnaryExpression::lessThan);
-            mergeIntoOne(list, Tokenizer.TokenType.MORE_OR_EQUAL, UnaryExpression::moreOrEqual);
-            mergeIntoOne(list, Tokenizer.TokenType.MORE_THAN, UnaryExpression::moreThan);
-            mergeIntoOne(list, Tokenizer.TokenType.EQUAL, UnaryExpression::equal);
-            mergeIntoOne(list, Tokenizer.TokenType.NEGATE_EQUAL, (l, r) -> new NegateExpression(UnaryExpression.equal(l, r), Expression.Position.betweenEx(l.info(), r.info())));
-            mergeIntoOne(list, Tokenizer.TokenType.AND_DOUBLE, UnaryExpression::and);
-            mergeIntoOne(list, Tokenizer.TokenType.OR_DOUBLE, UnaryExpression::or);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.LESS_OR_EQUAL, UnaryExpression::lessOrEqual);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.LESS_THAN, UnaryExpression::lessThan);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.MORE_OR_EQUAL, UnaryExpression::moreOrEqual);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.MORE_THAN, UnaryExpression::moreThan);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.EQUAL, UnaryExpression::equal);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.NEGATE_EQUAL, (l, r) -> new NegateExpression(UnaryExpression.equal(l, r), Expression.Position.betweenEx(l.info(), r.info())));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.AND_DOUBLE, UnaryExpression::and);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.OR_DOUBLE, UnaryExpression::or);
 
-            mergeIntoOne(list, Tokenizer.TokenType.POWER_SET, asSetter(UnaryExpression::power));
-            mergeIntoOne(list, Tokenizer.TokenType.MULTIPLY_SET, asSetter(UnaryExpression::multiply));
-            mergeIntoOne(list, Tokenizer.TokenType.DIVIDE_SET, asSetter(UnaryExpression::divide));
-            mergeIntoOne(list, Tokenizer.TokenType.ADD_SET, asSetter(UnaryExpression::add));
-            mergeIntoOne(list, Tokenizer.TokenType.REMOVE_SET, asSetter(UnaryExpression::remove));
-            mergeIntoOne(list, Tokenizer.TokenType.SET, asSetter((l, r) -> r));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.POWER_SET, asSetter(UnaryExpression::power));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.MULTIPLY_SET, asSetter(UnaryExpression::multiply));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE_SET, asSetter(UnaryExpression::divide));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.ADD_SET, asSetter(UnaryExpression::add));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.REMOVE_SET, asSetter(UnaryExpression::remove));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.SET, asSetter((l, r) -> r));
+
+            mergeTrinaryExpressions(list, Tokenizer.TokenType.QUESTION_MARK, Tokenizer.TokenType.COLON, IfElseExpression::trinary);
 
             if (list.size() == 1) {
                 return (Expression) list.get(0);
@@ -325,7 +369,7 @@ public class ExpressionBuilder {
         };
     }
 
-    private void mergeIntoOne(ArrayList<Object> list, Tokenizer.TokenType token, BiFunction<Expression, Expression, Expression> expressionBuilder) throws UnexpectedTokenException {
+    private void mergeUnaryExpressions(ArrayList<Object> list, Tokenizer.TokenType token, BiFunction<Expression, Expression, Expression> expressionBuilder) throws UnexpectedTokenException {
         for (int i = 0; i < list.size(); i++) {
             if (list.get(i) instanceof Tokenizer.Token token1 && token1.type() == token) {
                 var left = (Expression) list.remove(i - 1);
@@ -344,7 +388,29 @@ public class ExpressionBuilder {
         }
     }
 
-    private void leftTokenAction(ArrayList<Object> list, Tokenizer.TokenType token, Function<Expression, Expression> expressionBuilder) throws UnexpectedTokenException {
+    private void mergeTrinaryExpressions(ArrayList<Object> list, Tokenizer.TokenType tokenLeft, Tokenizer.TokenType tokenRight, TriFunction<Expression, Expression, Expression, Expression> expressionBuilder) throws UnexpectedTokenException {
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i) instanceof Tokenizer.Token token1 && token1.type() == tokenLeft && list.get(i + 2) instanceof Tokenizer.Token token2 && token2.type() == tokenRight) {
+                var left = (Expression) list.remove(i - 1);
+                list.remove(i - 1);
+                var middle = (Expression) list.remove(i - 1);
+                list.remove(i - 1);
+                var right = (Expression) list.remove(i - 1);
+
+
+                var val =  expressionBuilder.apply(left, middle, right);
+
+                if (val == null) {
+                    throw new UnexpectedTokenException(token1, tokenLeft);
+                }
+
+                list.add(i - 1, val);
+                i--;
+            }
+        }
+    }
+
+    private void mergeLeftTokenExpression(ArrayList<Object> list, Tokenizer.TokenType token, Function<Expression, Expression> expressionBuilder) throws UnexpectedTokenException {
         for (int i = 0; i < list.size() - 1; i++) {
             if (list.get(i) instanceof Tokenizer.Token token1 && token1.type() == token && list.get(i + 1) instanceof Expression) {
                 list.remove(i);
@@ -432,7 +498,7 @@ public class ExpressionBuilder {
 
                 while ((next = this.matcher.peek()).type() != Tokenizer.TokenType.SCOPE_END && !this.matcher.isDone()) {
                         this.matcher.back();
-                    var pair = new Expression[2];
+                        var pair = new Expression[2];
                         pair[0] = parseExpression();
 
                         if (this.matcher.peek().type() != Tokenizer.TokenType.COLON) {
@@ -511,7 +577,7 @@ public class ExpressionBuilder {
                 }
 
                 case ADD, REMOVE, MULTIPLY, DIVIDE, POWER, LESS_THAN, LESS_OR_EQUAL, MORE_THAN, MORE_OR_EQUAL, EQUAL, NEGATE_EQUAL, AND, OR, AND_DOUBLE, OR_DOUBLE,
-                        ADD_SET, REMOVE_SET, MULTIPLY_SET, DIVIDE_SET, POWER_SET, SET -> {
+                        ADD_SET, REMOVE_SET, MULTIPLY_SET, DIVIDE_SET, POWER_SET, SET, SHIFT_LEFT, SHIFT_RIGHT, DIVIDE_REST -> {
                     unorderedOperations.accept(expression);
                     unorderedOperations.accept(next);
                     parseValueToken(this.matcher.peek(), unorderedOperations);
@@ -605,5 +671,9 @@ public class ExpressionBuilder {
         } else {
             throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
         }
+    }
+
+    private interface TriFunction<T, T1, T2, T3> {
+        T3 apply(T t, T1 t1, T2 t2);
     }
 }

@@ -128,10 +128,12 @@ public class StringReader {
 
             if (val == '0') {
                 val = this.peek();
-                if (val == 'x') {
+                if (val == 'x'  || val == 'X') {
                     type = 16;
-                } else if (val == 'b') {
+                } else if (val == 'b' || val == 'B') {
                     type = 2;
+                } else if (val == 'o' || val == 'O') {
+                    type = 8;
                 } else if (val == '.') {
                     hasDot = true;
                     builder.append('0');

@@ -5,6 +5,12 @@ var ergh = 6;
 var test2 = (x) -> {5;};
 var test = (x) -> x * 2;
 
+var test = (a, b, c) -> {
+    print(a * b - c);
+};
+
+test(1, 2, 3);
+
 (() -> { return 8; })();
 
 print((2 * 5 + 8) ^ 2 * 2);
@@ -41,14 +47,11 @@ print(typeof obj, obj);
 
 var table = List();
 
-for var i = 0; i < 32; ++i {
-    table.add(Math.sin(i / Math.PI));
-}
+for var i = 0; i < 128 * 3; ++i {
+    table.add(Math.sin(i / Math.PI / 10));
+};
 
-for var i : table {
-    var value = table[i];
-    print(" | " + (" " * ((i + 1) * 10)) + "#");
-}
+var x = 0;
 
 print(Math.random() > 0.3 || Math.random() < -0.3);
 
@@ -62,3 +65,49 @@ Test.set("Everyone!");
 print(import("testjar:test2").get());
 
 print([ typeof Object(), typeof Map(), typeof List(), typeof 0xFF, typeof "hello", typeof Global, typeof print ]);
+
+
+print(Runtime.run("return 6 * 8 + 4;"))
+
+var rgb = (r, g, b) -> ((r * 0xFF) << 16 & 0xFF) | ((g * 0xFF) << 8 & 0xFF) | ((b * 0xFF) & 0xFF);
+
+print(rgb(0, 0, 0))
+
+var hvs = (hue, saturation, value) -> {
+    var h = (hue * 6).floor % 6;
+    var f = hue * 6 - h;
+    var p = value * (1 - saturation);
+    var q = value * (1 - f * saturation);
+    var t = value * (1 - (1 - f) * saturation);
+
+    if h == 0 return rgb(value, t, p);
+    if h == 1 return rgb(q, value, p);
+    if h == 2 return rgb(p, value, t);
+    if h == 3 return rgb(p, q, value);
+    if h == 4 return rgb(t, p, value);
+    if h == 5 return rgb(value, p, q);
+    return 0;
+};
+var delta = 0;
+
+Runtime.interval(10, () -> {
+
+    var color = hvs((delta / 10000 * 2 + 0.5) % 1, 0.7, 0.8);
+    Display.clear(hvs((delta / 10000) % 1, 0.7, 1));
+    for var x = 0; x < 128 * 4 - 1; ++x {
+        var sin = (Math.sin((x + delta) / 40) + 1) * 128 - 0.5;
+
+        for var y = sin.floor; y <= sin.ceil; y++ {
+            Display.setPixel(x + 1, y + 128 - 64, color);
+            Display.setPixel(x + 1, y + 128 - 64 + 1, color);
+            Display.setPixel(x, y + 128 - 64, color);
+            Display.setPixel(x, y + 128 - 64 + 1, color);
+        };
+    };
+
+    delta += Math.sin(-Runtime.currentTimeMillis() / 10000) * 2 + 2;
+
+    Display.update();
+});
+
+print('end');

@@ -26,7 +26,7 @@ public class NumberObject extends XObject<Double> {
     }
 
     @Override
-    public double asNumber() {
+    public double asDouble() {
         return this.value;
     }
 
@@ -67,6 +67,51 @@ public class NumberObject extends XObject<Double> {
     }
 
     @Override
+    public XObject<?> divideRest(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        if (object instanceof NumberObject numberObject) {
+            return new NumberObject(this.value % numberObject.value);
+        }
+
+        return super.divideRest(scope, object, info);
+    }
+
+    @Override
+    public XObject<?> shiftRight(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        if (object instanceof NumberObject numberObject) {
+            return new NumberObject((int) this.value >> (int) numberObject.value);
+        }
+
+        return super.divideRest(scope, object, info);
+    }
+
+    @Override
+    public XObject<?> shiftLeft(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        if (object instanceof NumberObject numberObject) {
+            return new NumberObject((int) this.value << (int) numberObject.value);
+        }
+
+        return super.divideRest(scope, object, info);
+    }
+
+    @Override
+    public XObject<?> and(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        if (object instanceof NumberObject numberObject) {
+            return new NumberObject((int) this.value & (int) numberObject.value);
+        }
+
+        return super.and(scope, object, info);
+    }
+
+    @Override
+    public XObject<?> or(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        if (object instanceof NumberObject numberObject) {
+            return new NumberObject((int) this.value | (int) numberObject.value);
+        }
+
+        return super.or(scope, object, info);
+    }
+
+    @Override
     public XObject<?> power(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             return new NumberObject(Math.pow(this.value, numberObject.value));
@@ -91,6 +136,11 @@ public class NumberObject extends XObject<Double> {
         }
 
         return super.lessThan(scope, object, info);
+    }
+
+    @Override
+    public XObject<?> negate(ObjectScope scope, Expression.Position info) throws InvalidOperationException {
+        return new NumberObject(-this.value);
     }
 
     @Override

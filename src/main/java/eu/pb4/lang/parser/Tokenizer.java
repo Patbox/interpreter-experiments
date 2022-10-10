@@ -38,6 +38,8 @@ public class Tokenizer {
                     case "import" -> TokenType.IMPORT;
                     case "class" -> TokenType.CLASS;
                     case "typeof" -> TokenType.TYPEOF;
+                    case "async" -> TokenType.ASYNC;
+                    case "await" -> TokenType.AWAIT;
                     default -> TokenType.IDENTIFIER;
                 };
 
@@ -115,8 +117,8 @@ public class Tokenizer {
                             case '/' -> '=' == x ? TokenType.DIVIDE_SET : null;
                             case '*' -> '=' == x ? TokenType.MULTIPLY_SET : null;
                             case '^' -> '=' == x ? TokenType.POWER_SET : null;
-                            case '<' -> '=' == x ? TokenType.LESS_OR_EQUAL : null;
-                            case '>' -> '=' == x ? TokenType.MORE_OR_EQUAL : null;
+                            case '<' -> '=' == x ? TokenType.LESS_OR_EQUAL : '<' == x ? TokenType.SHIFT_LEFT : null;
+                            case '>' -> '=' == x ? TokenType.MORE_OR_EQUAL : '>' == x ? TokenType.SHIFT_RIGHT : null;
                             case '&' -> i == x ? TokenType.AND_DOUBLE : null;
                             case '|' -> i == x ? TokenType.OR_DOUBLE : null;
                             default -> null;
@@ -133,6 +135,7 @@ public class Tokenizer {
                             case '+' -> TokenType.ADD;
                             case '-' -> TokenType.REMOVE;
                             case '*' -> TokenType.MULTIPLY;
+                            case '%' -> TokenType.DIVIDE_REST;
                             case '/' -> TokenType.DIVIDE;
                             case '^' -> TokenType.POWER;
                             case ';' -> TokenType.END;
@@ -151,6 +154,7 @@ public class Tokenizer {
                             case '<' -> TokenType.LESS_THAN;
                             case '>' -> TokenType.MORE_THAN;
                             case ':' -> TokenType.COLON;
+                            case '?' -> TokenType.QUESTION_MARK;
                             default -> null;
                         };
                     }
@@ -198,14 +202,19 @@ public class Tokenizer {
         NEGATE,
         NEGATE_EQUAL,
         SET,
+        DIVIDE_REST,
         EQUAL,
 
         COLON,
+        QUESTION_MARK,
 
         AND,
         AND_DOUBLE,
         OR,
         OR_DOUBLE,
+
+        SHIFT_LEFT,
+        SHIFT_RIGHT,
 
         DOT,
         COMMA,
@@ -228,6 +237,8 @@ public class Tokenizer {
         IMPORT,
         CLASS,
         TYPEOF,
+        ASYNC,
+        AWAIT,
 
         CONTINUE,
         BREAK,

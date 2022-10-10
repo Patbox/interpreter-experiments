@@ -1,6 +1,7 @@
 package eu.pb4.lang.expression;
 
 import eu.pb4.lang.exception.InvalidOperationException;
+import eu.pb4.lang.object.BooleanObject;
 import eu.pb4.lang.object.ObjectScope;
 import eu.pb4.lang.object.XObject;
 
