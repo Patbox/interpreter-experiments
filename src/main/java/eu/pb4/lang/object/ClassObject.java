@@ -17,14 +17,16 @@ public class ClassObject extends XObject<String> {
     private final List<Pair<Pair<String, Boolean>, Expression>> fieldConstructor;
     private final ObjectScope scope;
     private final ArrayList<Pair<Pair<String, Boolean>, Expression>> methodConstructor;
+    public final boolean finalClass;
 
     public ClassObject(ObjectScope scope, String name, ClassObject superClass, FunctionExpression constructor,
                        List<Pair<Pair<String, Boolean>, Expression>> fieldConstructor,
-                       List<Pair<Pair<String, Boolean>, Expression>> staticFieldConstructor) throws InvalidOperationException {
+                       List<Pair<Pair<String, Boolean>, Expression>> staticFieldConstructor, boolean isFinalClass) throws InvalidOperationException {
         this.scope = new ObjectScope(scope);
         this.name = name;
         this.superClass = superClass;
         this.constructor = constructor;
+        this.finalClass = isFinalClass;
         this.fieldConstructor = new ArrayList<>();
         this.methodConstructor = new ArrayList<>();
 

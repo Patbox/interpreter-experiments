@@ -35,14 +35,23 @@ public class ExpressionMatcher {
     public void parseMultiExpression(Consumer<Expression> consumer) throws UnexpectedTokenException, InvalidTokenException {
         var token = this.matcher.peek();
 
+        var isFinal = false;
+        if (token.type() == Tokenizer.TokenType.FINAL) {
+            isFinal = true;
+            token = this.matcher.peek();
+        }
+
         switch (token.type()) {
-            case DECLARE_VAR -> parseVariableDefinition(consumer);
-            case CLASS -> consumer.accept(parseClass(token));
+            case DECLARE_VAR -> parseVariableDefinition(consumer, isFinal);
+            case CLASS -> {
+                var classExpr = parseClass(token, isFinal);
+                consumer.accept(new DefineVariableExpression(classExpr.name(), classExpr, true, classExpr.info()));
+            }
             default -> consumer.accept(parseExpression(token));
         }
     }
 
-    private Expression parseClass(Tokenizer.Token token) throws UnexpectedTokenException, InvalidTokenException {
+    private CreateClassExpression parseClass(Tokenizer.Token token, boolean isFinalClass) throws UnexpectedTokenException, InvalidTokenException {
         var id = this.matcher.peek();
 
         if (id.type() != Tokenizer.TokenType.IDENTIFIER) {
@@ -75,7 +84,8 @@ public class ExpressionMatcher {
             next = this.matcher.peek();
 
             if (next.type() == Tokenizer.TokenType.SCOPE_END) {
-                return new DefineVariableExpression((String) id.value(), new CreateClassExpression((String) id.value(), superClass, constructor, fieldConstructor, staticConstructor, Expression.Position.from(token)), Expression.Position.betweenIn(id, next));
+                return new CreateClassExpression((String) id.value(), superClass, constructor, fieldConstructor, staticConstructor, isFinalClass,
+                                Expression.Position.from(token));
             }
 
             boolean isFinal = false;
@@ -109,6 +119,10 @@ public class ExpressionMatcher {
                     expression = this.parseExpression();
                 }
                 fields.add(new Pair<>(new Pair<>(fieldId, isFinal), expression));
+            } else if (next.type() == Tokenizer.TokenType.CLASS) {
+                var classExpr = parseClass(next, isFinal);
+
+                fields.add(new Pair<>(new Pair<>(classExpr.name(), isFinal), classExpr));
             } else if (next.type() == Tokenizer.TokenType.END) {
                 continue;
             } else {
@@ -228,7 +242,7 @@ public class ExpressionMatcher {
                 var path = this.matcher.peek();
 
                 if (id.type() == Tokenizer.TokenType.IDENTIFIER && path.type() == Tokenizer.TokenType.STRING) {
-                    yield new DefineVariableExpression((String) id.value(), new ImportExpression(new StringObject((String) path.value()).asExpression(Expression.Position.from(id)), Expression.Position.from(token)), Expression.Position.from(token));
+                    yield new DefineVariableExpression((String) id.value(), new ImportExpression(new StringObject((String) path.value()).asExpression(Expression.Position.from(id)), Expression.Position.from(token)), true, Expression.Position.from(token));
                 } else if (id.type() == Tokenizer.TokenType.BRACKET_START) {
                     this.matcher.index(start);
                     yield parseValueToken(token);
@@ -749,6 +763,8 @@ public class ExpressionMatcher {
                     var key = this.matcher.peek();
                     if (key.type() == Tokenizer.TokenType.IDENTIFIER) {
                         expression = new GetStringExpression(expression, (String) key.value(), Expression.Position.from(token));
+                    } else if (key.type() == Tokenizer.TokenType.CLASS) {
+                        expression = new GetClassExpression(expression, Expression.Position.from(token));
                     }
                 }
 
@@ -822,7 +838,7 @@ public class ExpressionMatcher {
         }
     }
 
-    private void parseVariableDefinition(Consumer<Expression> consumer) throws UnexpectedTokenException, InvalidTokenException {
+    private void parseVariableDefinition(Consumer<Expression> consumer, boolean isFinal) throws UnexpectedTokenException, InvalidTokenException {
         var id = this.matcher.peek();
         var value = XObject.NULL.asExpression(Expression.Position.EMPTY);
         if (id.type() == Tokenizer.TokenType.IDENTIFIER) {
@@ -831,7 +847,7 @@ public class ExpressionMatcher {
                 if (next.type() == Tokenizer.TokenType.SET) {
                     value = parseExpression();
                 } else if (next.type() == Tokenizer.TokenType.COMMA) {
-                    consumer.accept(new DefineVariableExpression((String) id.value(), value, Expression.Position.betweenIn(id, next)));
+                    consumer.accept(new DefineVariableExpression((String) id.value(), value, isFinal, Expression.Position.betweenIn(id, next)));
                     id = this.matcher.peek();
                     if (id.type() != Tokenizer.TokenType.IDENTIFIER) {
                         throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
@@ -840,7 +856,7 @@ public class ExpressionMatcher {
                     value = XObject.NULL.asExpression(Expression.Position.EMPTY);
                 } else {
                     this.matcher.back();
-                    consumer.accept(new DefineVariableExpression((String) id.value(), value, Expression.Position.betweenIn(id, next)));
+                    consumer.accept(new DefineVariableExpression((String) id.value(), value, isFinal, Expression.Position.betweenIn(id, next)));
                     break;
                 }
             }

@@ -4,6 +4,7 @@ import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.exception.ScriptConsumer;
 import eu.pb4.lang.expression.CallFunctionException;
 import eu.pb4.lang.expression.Expression;
+import eu.pb4.lang.libs.FileSystemLibrary;
 import eu.pb4.lang.object.*;
 import eu.pb4.lang.parser.ExpressionMatcher;
 import eu.pb4.lang.parser.TokenReader;
@@ -70,16 +71,8 @@ public class Runtime {
             }
         }));
 
-        scope.quickSetVariable("List", new JavaFunctionObject((scope, args, info) -> {
-            var list = new ListObject();
-            for (var arg : args) {
-                list.asJava().add(arg);
-            }
-
-            return list;
-        }));
-
-        scope.quickSetVariable("Map", new JavaFunctionObject((scope, args, info) -> new MapObject()));
+        scope.quickSetVariable("List", new JavaFunctionObject(ListObject::create));
+        scope.quickSetVariable("Map", new JavaFunctionObject(MapObject::create));
         scope.quickSetVariable("Object", new JavaFunctionObject((scope, args, info) -> new StringMapObject()));
 
         scope.quickSetVariable("Math", new ObjectBuilder()
@@ -119,6 +112,8 @@ public class Runtime {
                         .oneArgRet("clearTimeout", (arg) -> BooleanObject.of(this.timeout.removeIf(x -> x.id == arg.asInt())))
 
                 .build());
+
+        scope.quickSetVariable("FS", FileSystemLibrary.build());
 
         scope.quickSetVariable("Global", scope);
     }

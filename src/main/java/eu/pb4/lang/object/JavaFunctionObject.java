@@ -34,13 +34,20 @@ public class JavaFunctionObject extends XObject<JavaFunctionObject.Function> {
 
     @Override
     public XObject<?> call(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
-        return this.function.apply(scope, args, info);
+        try {
+            return this.function.apply(scope, args, info);
+        } catch (InvalidOperationException e) {
+            throw e;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new InvalidOperationException(info, "Internal Runtime error! " + e.getMessage());
+        }
     }
 
     public interface Consumer {
-        void accept(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException ;
+        void accept(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws Exception ;
     }
     public interface Function {
-        XObject<?> apply(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException;
+        XObject<?> apply(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws Exception;
     }
 }

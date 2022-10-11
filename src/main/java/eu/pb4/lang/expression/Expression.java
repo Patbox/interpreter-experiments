@@ -14,6 +14,10 @@ public interface Expression {
         return Position.EMPTY;
     }
 
+    default XObject<?> thr(String text) throws InvalidOperationException {
+        throw new InvalidOperationException(this.info(), text);
+    }
+
     record Position(int start, int end) {
         public static final Position EMPTY = new Position(-1, -1);
 

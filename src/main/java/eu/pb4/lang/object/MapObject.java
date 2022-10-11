@@ -83,6 +83,24 @@ public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
         return this.map;
     }
 
+    public static XObject<?> create(ObjectScope scope, XObject<?>[] xObjects, Expression.Position position) {
+        var map = new MapObject();
+
+        for (var arg : xObjects) {
+            if (arg instanceof MapObject mapObject) {
+                map.map.putAll(mapObject.map);
+            } else if (arg instanceof StringMapObject mapObject) {
+                mapObject.asJava().forEach((a, b) -> map.map.put(new StringObject(a), b));
+            } else if (arg instanceof ListObject listObject) {
+                for (var i = 0; i < listObject.asJava().size(); i++) {
+                    map.map.put(new NumberObject(i), listObject.asJava().get(i));
+                }
+            }
+        }
+
+        return map;
+    }
+
     private record MapIterator(Iterator<Map.Entry<XObject<?>, XObject<?>>> iterator) implements Iterator<XObject<?>> {
         @Override
         public boolean hasNext() {

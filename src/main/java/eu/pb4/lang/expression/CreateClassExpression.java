@@ -10,7 +10,8 @@ import java.util.List;
 
 public record CreateClassExpression(String name, String superClass, FunctionExpression constructor,
                                     List<Pair<Pair<String, Boolean>, Expression>> fieldConstructor,
-                                    List<Pair<Pair<String, Boolean>, Expression>> staticFieldConstructor, Position info) implements Expression {
+                                    List<Pair<Pair<String, Boolean>, Expression>> staticFieldConstructor,
+                                    boolean isFinalClass, Position info) implements Expression {
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
         ClassObject superClass = null;
@@ -20,14 +21,18 @@ public record CreateClassExpression(String name, String superClass, FunctionExpr
                 var obj = scope.getVariable(this.superClass);
                 if (obj instanceof ClassObject classObject) {
                     superClass = classObject;
+
+                    if (superClass.finalClass) {
+                        thr(this.superClass + " is a final/non-extendable class!");
+                    }
                 } else {
-                    throw new InvalidOperationException(info, this.superClass + " isn't a class!");
+                    thr(this.superClass + " isn't a class!");
                 }
             } catch (Throwable e) {
-                throw new InvalidOperationException(info, e.getMessage());
+                thr(e.getMessage());
             }
         }
 
-        return new ClassObject(scope, this.name, superClass, this.constructor, this.fieldConstructor, this.staticFieldConstructor);
+        return new ClassObject(scope, this.name, superClass, this.constructor, this.fieldConstructor, this.staticFieldConstructor, isFinalClass);
     }
 }

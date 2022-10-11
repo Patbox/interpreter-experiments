@@ -7,7 +7,7 @@ import eu.pb4.lang.parser.Tokenizer;
 public record DirectObjectExpression(XObject<?> object, Position info) implements Expression {
     public static Expression fromToken(Tokenizer.Token token) throws InvalidTokenException {
         return new DirectObjectExpression(switch (token.type()) {
-            case STRING -> new StringObject((String) token.value());
+            case STRING -> new StringObject(((String) token.value()).replace('\n', '\0').replace("\\n", "\n"));
             case NUMBER -> new NumberObject((double) token.value());
             case TRUE -> BooleanObject.TRUE;
             case FALSE -> BooleanObject.FALSE;

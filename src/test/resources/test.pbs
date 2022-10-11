@@ -120,4 +120,12 @@ Runtime.interval(10, () -> {
     Display.update();
 });
 
+var path = FS.path('./run/files')
+print('FS tests');
+print(path);
+print(FS.mkdir(path));
+print(FS.exists(path));
+print(FS.writeString(path + "/test.txt", "Hello world!\n" * 64));
+
+
 print('end');

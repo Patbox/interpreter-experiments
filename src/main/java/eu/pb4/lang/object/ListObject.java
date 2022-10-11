@@ -105,4 +105,17 @@ public class ListObject extends XObject<List<XObject<?>>> {
     public @Nullable List<XObject<?>> asJava() {
         return this.list;
     }
+
+    public static XObject<?> create(ObjectScope scope, XObject<?>[] xObjects, Expression.Position position) throws InvalidOperationException {
+        var map = new ListObject();
+
+        for (var arg : xObjects) {
+            var i = arg.iterator(scope, position);
+            while (i.hasNext()) {
+                map.list.add(i.next());
+            }
+        }
+
+        return map;
+    }
 }

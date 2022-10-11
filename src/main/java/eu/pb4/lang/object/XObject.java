@@ -148,17 +148,6 @@ public abstract class XObject<T> {
         return Objects.hash(this.asJava());
     }
 
-    public double asDouble() {
-        throw new UnsupportedOperationException(this.getClass() + " / " + this.type() + " isn't a number!");
-    }
-
-    public abstract String asString();
-
-    public int asInt() {
-        return (int) this.asDouble();
-    }
-
-
     public XObject<?> divideRest(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         throw new InvalidOperationException(info, "rest division of " + this.type() + " with " + object.type());
     }
@@ -169,5 +158,15 @@ public abstract class XObject<T> {
 
     public XObject<?> shiftLeft(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         throw new InvalidOperationException(info, "shifting right of " + this.type() + " with " + object.type());
+    }
+
+    public double asDouble() {
+        throw new UnsupportedOperationException(this.getClass() + " / " + this.type() + " isn't a number!");
+    }
+
+    public abstract String asString();
+
+    public int asInt() {
+        return (int) this.asDouble();
     }
 }

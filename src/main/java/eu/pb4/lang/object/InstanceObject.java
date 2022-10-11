@@ -10,7 +10,7 @@ import java.util.Map;
 public class InstanceObject extends XObject<Map<String, XObject<?>>> {
     private final Map<String, XObject<?>> variables = new HashMap<>();
     private final Map<String, Boolean> variablesReadOnly = new HashMap<>();
-    private final ClassObject classObject;
+    public final ClassObject classObject;
     private final Map<ClassObject, Map<String, XObject<?>>> variablesByClass = new HashMap<>();
 
     public InstanceObject(ClassObject classObject) {
@@ -19,7 +19,7 @@ public class InstanceObject extends XObject<Map<String, XObject<?>>> {
 
     @Override
     public String asString() {
-        return "{ object " + this.classObject.name() + "} ";
+        return "{ object " + this.classObject.name() + " }";
     }
 
     @Override
