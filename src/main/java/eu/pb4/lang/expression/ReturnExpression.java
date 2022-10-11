@@ -5,9 +5,9 @@ import eu.pb4.lang.object.ForceReturnObject;
 import eu.pb4.lang.object.ObjectScope;
 import eu.pb4.lang.object.XObject;
 
-public record ReturnExpression(Expression expression, Position info) implements Expression {
+public record ReturnExpression(Expression expression, ForceReturnObject.Type type, Position info) implements Expression {
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
-        return new ForceReturnObject(expression.execute(scope));
+        return new ForceReturnObject(expression.execute(scope), type);
     }
 }

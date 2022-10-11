@@ -4,6 +4,7 @@ import eu.pb4.lang.exception.InvalidTokenException;
 import eu.pb4.lang.exception.UnexpectedTokenException;
 import eu.pb4.lang.expression.*;
 import eu.pb4.lang.object.*;
+import eu.pb4.lang.util.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -118,7 +119,8 @@ public class ExpressionBuilder {
                     throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
                 }
             }
-            case RETURN -> new ReturnExpression(parseEmptyExpression(), Expression.Position.from(token));
+            case RETURN -> new ReturnExpression(parseEmptyExpression(), ForceReturnObject.Type.FULL, Expression.Position.from(token));
+            case YIELD -> new ReturnExpression(parseEmptyExpression(), ForceReturnObject.Type.SWITCH, Expression.Position.from(token));
             case CONTINUE -> new LoopSkipExpression(false, Expression.Position.from(token));
             case BREAK -> new LoopSkipExpression(true, Expression.Position.from(token));
             case WHILE -> {
@@ -141,13 +143,63 @@ public class ExpressionBuilder {
 
             case IF -> parseIf();
 
+            case SWITCH -> {
+                var next = this.matcher.peek();
+                Expression value;
+                if (next.type() == Tokenizer.TokenType.BRACKET_START) {
+                    value = parseExpression();
+
+                    if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
+                        throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
+                    }
+                } else {
+                    value = parseExpression(next);
+                }
+
+                var peek = this.matcher.peek();
+
+                if (peek.type() != Tokenizer.TokenType.SCOPE_START) {
+                    throw new UnexpectedTokenException(peek, Tokenizer.TokenType.SCOPE_START);
+                }
+
+                List<Expression> defaultExpr = List.of(Expression.NOOP);
+                List<Pair<Expression, List<Expression>>> expressions = new ArrayList<>();
+
+                while (!this.matcher.isDone()) {
+                    peek = this.matcher.peek();
+
+                    if (peek.type() == Tokenizer.TokenType.SCOPE_END) {
+                        yield new SwitchExpression(value, expressions, defaultExpr, Expression.Position.from(next));
+                    } else if (peek.type() == Tokenizer.TokenType.CASE) {
+                        var expr = this.parseExpression();
+
+                        if (this.matcher.peek().type() != Tokenizer.TokenType.FUNCTION_ARROW) {
+                            throw new UnexpectedTokenException(peek, Tokenizer.TokenType.FUNCTION_ARROW);
+                        }
+
+                        expressions.add(new Pair<>(expr, parseScoped()));
+                    } else if (peek.type() == Tokenizer.TokenType.DEFAULT) {
+                        if (this.matcher.peek().type() != Tokenizer.TokenType.FUNCTION_ARROW) {
+                            throw new UnexpectedTokenException(peek, Tokenizer.TokenType.FUNCTION_ARROW);
+                        }
+
+                        defaultExpr = parseScoped();
+                    } else if (peek.type() == Tokenizer.TokenType.END) {
+                        continue;
+                    } else {
+                        throw new UnexpectedTokenException(peek, Tokenizer.TokenType.SCOPE_END);
+                    }
+                }
+
+                throw new UnexpectedTokenException(peek, Tokenizer.TokenType.SCOPE_END);
+            }
+
             case FOR -> {
                 var next = this.matcher.peek();
                 List<Expression> init = new ArrayList<>();
                 Expression expression;
                 Expression post;
                 if (next.type() == Tokenizer.TokenType.BRACKET_START) {
-
                     {
                         var start = this.matcher.index();
 
@@ -278,7 +330,7 @@ public class ExpressionBuilder {
                     list.removeIf(x -> x == Expression.NOOP);
 
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
-                        throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
+                        this.matcher.back();
                     }
                 }
             }
@@ -376,7 +428,7 @@ public class ExpressionBuilder {
                 list.remove(i - 1);
                 var right = (Expression) list.remove(i - 1);
 
-                var val =  expressionBuilder.apply(left, right);
+                var val = expressionBuilder.apply(left, right);
 
                 if (val == null) {
                     throw new UnexpectedTokenException(token1, token);
@@ -398,7 +450,7 @@ public class ExpressionBuilder {
                 var right = (Expression) list.remove(i - 1);
 
 
-                var val =  expressionBuilder.apply(left, middle, right);
+                var val = expressionBuilder.apply(left, middle, right);
 
                 if (val == null) {
                     throw new UnexpectedTokenException(token1, tokenLeft);
@@ -416,7 +468,7 @@ public class ExpressionBuilder {
                 list.remove(i);
                 var right = (Expression) list.remove(i);
 
-                var val =  expressionBuilder.apply(right);
+                var val = expressionBuilder.apply(right);
 
                 if (val == null) {
                     throw new UnexpectedTokenException(token1, token);
@@ -432,7 +484,7 @@ public class ExpressionBuilder {
             if (list.get(i) instanceof Tokenizer.Token token1 && token1.type() == token && list.get(i - 1) instanceof Expression) {
                 var right = (Expression) list.remove(i - 1);
                 list.remove(i - 1);
-                var val =  expressionBuilder.apply(right);
+                var val = expressionBuilder.apply(right);
 
                 if (val == null) {
                     throw new UnexpectedTokenException(token1, token);
@@ -497,47 +549,54 @@ public class ExpressionBuilder {
                 }
 
                 while ((next = this.matcher.peek()).type() != Tokenizer.TokenType.SCOPE_END && !this.matcher.isDone()) {
+                    this.matcher.back();
+                    var pair = new Expression[2];
+                    var possibleId = this.matcher.peek();
+
+                    if (possibleId.value() instanceof String str && !isMap) {
+                        pair[0] = new DirectObjectExpression(new StringObject(str), Expression.Position.from(possibleId));
+                    } else {
                         this.matcher.back();
-                        var pair = new Expression[2];
                         pair[0] = parseExpression();
-
-                        if (this.matcher.peek().type() != Tokenizer.TokenType.COLON) {
-                            throw new UnexpectedTokenException(next, Tokenizer.TokenType.COLON);
-                        }
-
-                        pair[1] = parseExpression();
-
-                        val.add(pair);
-
-                        next = this.matcher.peek();
-                        if (next.type() == Tokenizer.TokenType.SCOPE_END) {
-                            if (isMap) {
-                                if ((next = this.matcher.peek()).type() == Tokenizer.TokenType.SCOPE_END) {
-                                    yield new MapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next));
-                                } else {
-                                    throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
-                                }
-                            } else {
-                                yield new StringMapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next));
-                            }
-                        } else if (next.type() != Tokenizer.TokenType.COMMA) {
-                            throw new UnexpectedTokenException(next, Tokenizer.TokenType.COMMA);
-                        }
                     }
 
+                    if (this.matcher.peek().type() != Tokenizer.TokenType.COLON) {
+                        throw new UnexpectedTokenException(next, Tokenizer.TokenType.COLON);
+                    }
+
+                    pair[1] = parseExpression();
+
+                    val.add(pair);
+
+                    next = this.matcher.peek();
                     if (next.type() == Tokenizer.TokenType.SCOPE_END) {
                         if (isMap) {
                             if ((next = this.matcher.peek()).type() == Tokenizer.TokenType.SCOPE_END) {
-                                yield new DirectObjectExpression(new MapObject(), Expression.Position.betweenIn(token, next));
+                                yield new MapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next));
                             } else {
                                 throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
                             }
                         } else {
-                            yield new DirectObjectExpression(new StringMapObject(), Expression.Position.betweenIn(token, next));
+                            yield new StringMapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next));
+                        }
+                    } else if (next.type() != Tokenizer.TokenType.COMMA) {
+                        throw new UnexpectedTokenException(next, Tokenizer.TokenType.COMMA);
+                    }
+                }
+
+                if (next.type() == Tokenizer.TokenType.SCOPE_END) {
+                    if (isMap) {
+                        if ((next = this.matcher.peek()).type() == Tokenizer.TokenType.SCOPE_END) {
+                            yield new DirectObjectExpression(new MapObject(), Expression.Position.betweenIn(token, next));
+                        } else {
+                            throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
                         }
                     } else {
-                        throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
+                        yield new DirectObjectExpression(new StringMapObject(), Expression.Position.betweenIn(token, next));
                     }
+                } else {
+                    throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
+                }
 
             }
 
@@ -652,11 +711,7 @@ public class ExpressionBuilder {
         if (id.type() == Tokenizer.TokenType.IDENTIFIER) {
             while (true) {
                 var next = this.matcher.peek();
-                if (next.type() == Tokenizer.TokenType.END) {
-                    this.matcher.back();
-                    consumer.accept(new DefineVariableExpression((String) id.value(), value, Expression.Position.betweenIn(id, next)));
-                    break;
-                } else if (next.type() == Tokenizer.TokenType.SET) {
+                if (next.type() == Tokenizer.TokenType.SET) {
                     value = parseExpression();
                 } else if (next.type() == Tokenizer.TokenType.COMMA) {
                     consumer.accept(new DefineVariableExpression((String) id.value(), value, Expression.Position.betweenIn(id, next)));
@@ -666,6 +721,10 @@ public class ExpressionBuilder {
                     }
 
                     value = XObject.NULL.asExpression(Expression.Position.EMPTY);
+                } else {
+                    this.matcher.back();
+                    consumer.accept(new DefineVariableExpression((String) id.value(), value, Expression.Position.betweenIn(id, next)));
+                    break;
                 }
             }
         } else {

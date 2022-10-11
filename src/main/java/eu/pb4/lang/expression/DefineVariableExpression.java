@@ -9,7 +9,11 @@ public record DefineVariableExpression(String id, Expression value, Position inf
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
         var value = this.value.execute(scope);
-        scope.declareVariable(id, value);
+        try {
+            scope.declareVariable(id, value);
+        } catch (Throwable e) {
+            throw new InvalidOperationException(info, e.getMessage());
+        }
         return value;
     }
 }

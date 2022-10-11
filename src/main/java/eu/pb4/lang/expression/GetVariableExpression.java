@@ -1,12 +1,17 @@
 package eu.pb4.lang.expression;
 
+import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.object.ObjectScope;
 import eu.pb4.lang.object.XObject;
 
 public record GetVariableExpression(String name, Position info) implements SettableExpression {
     @Override
-    public XObject<?> execute(ObjectScope scope) {
-        return scope.getVariable(this.name);
+    public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
+        try {
+            return scope.getVariable(this.name);
+        } catch (Throwable e) {
+            throw new InvalidOperationException(info, e.getMessage());
+        }
     }
 
     @Override

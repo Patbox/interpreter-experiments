@@ -2,25 +2,25 @@
 
 var ergh = 6;
 
-var test2 = (x) -> {5;};
-var test = (x) -> x * 2;
+var test2 = (x) -> {5};
+var test3 = (x) -> x * 2;
 
 var test = (a, b, c) -> {
     print(a * b - c);
-};
+}
 
 test(1, 2, 3);
 
-(() -> { return 8; })();
+(() -> { return 8; })()
 
-print((2 * 5 + 8) ^ 2 * 2);
+print((2 * 5 + 8) ^ 2 * 2)
 
-export test 98.5;
-export test2 0xFF;
+export test 98.5
+export test2 0xFF
 
-print(2 * (5 * 2 + 8) ^ 2);
+print(2 * (5 * 2 + 8) ^ 2)
 
-var o = 0;
+var o = 0
 
 print(++o + 10);
 print(o++ + 10);
@@ -80,13 +80,23 @@ var hvs = (hue, saturation, value) -> {
     var q = value * (1 - f * saturation);
     var t = value * (1 - (1 - f) * saturation);
 
+    /*
     if h == 0 return rgb(value, t, p);
     if h == 1 return rgb(q, value, p);
     if h == 2 return rgb(p, value, t);
     if h == 3 return rgb(p, q, value);
     if h == 4 return rgb(t, p, value);
     if h == 5 return rgb(value, p, q);
-    return 0;
+    */
+    return switch h {
+        case 0 -> rgb(value, t, p);
+        case 1 -> rgb(q, value, p);
+        case 2 -> rgb(p, value, t);
+        case 3 -> rgb(p, q, value);
+        case 4 -> rgb(t, p, value);
+        case 5 -> rgb(value, p, q);
+        default -> 0;
+    };
 };
 var delta = 0;
 

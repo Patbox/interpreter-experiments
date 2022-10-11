@@ -1,6 +1,7 @@
 package eu.pb4.lang.object;
 
 import eu.pb4.lang.Runtime;
+import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
@@ -72,9 +73,19 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
         this.writable = false;
     }
 
+    public void forceSetVariable(String name, XObject<?> value) {
+        this.variables.put(name, value);
+    }
+
     public void declareVariable(String name, XObject<?> value) {
         if (this.writable) {
-            this.variables.put(name, value);
+            if (!this.variables.containsKey(name)) {
+                this.variables.put(name, value);
+            } else {
+                throw new RuntimeException(name + " is already defined in this scope!");
+            }
+        } else {
+            throw new RuntimeException("Scope isn't writable");
         }
     }
 
@@ -84,7 +95,11 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
                 this.variables.put(name, value);
             } else if (this.parentScope != null) {
                 this.parentScope.setVariable(name, value);
+            } else {
+                throw new RuntimeException(name + " isn't defined in this scope!");
             }
+        } else {
+            throw new RuntimeException("Scope isn't writable");
         }
     }
 
@@ -95,7 +110,7 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
             return this.parentScope.getVariable(name);
         }
 
-        return XObject.NULL;
+        throw new RuntimeException(name + " isn't defined in this scope!");
     }
 
     @Override

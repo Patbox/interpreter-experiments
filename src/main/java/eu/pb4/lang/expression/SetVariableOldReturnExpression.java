@@ -8,7 +8,11 @@ public record SetVariableOldReturnExpression(String name, Expression expression,
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
         var val = scope.getVariable(this.name);
-        scope.setVariable(this.name, expression.execute(scope));
+        try {
+            scope.setVariable(this.name, expression.execute(scope));
+        } catch (Throwable e) {
+            throw new InvalidOperationException(info, e.getMessage());
+        }
         return val;
     }
 }

@@ -8,7 +8,11 @@ public record SetVariableExpression(String name, Expression expression, Position
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
         var val = expression.execute(scope);
-        scope.setVariable(this.name, val);
+        try {
+            scope.setVariable(this.name, val);
+        } catch (Throwable e) {
+            throw new InvalidOperationException(info, e.getMessage());
+        }
         return val;
     }
 }

@@ -56,13 +56,13 @@ public class Runtime {
     }
 
     public void defaultGlobals() {
-        scope.declareVariable("print", JavaFunctionObject.ofVoid((scope, args, info) -> {
+        scope.forceSetVariable("print", JavaFunctionObject.ofVoid((scope, args, info) -> {
             for (var arg : args) {
                 System.out.println(arg.asString());
             }
         }));
 
-        scope.declareVariable("wait", JavaFunctionObject.ofVoid((scope, args, info) -> {
+        scope.forceSetVariable("wait", JavaFunctionObject.ofVoid((scope, args, info) -> {
             try {
                 Thread.sleep(args[0].asInt());
             } catch (InterruptedException e) {
@@ -70,7 +70,7 @@ public class Runtime {
             }
         }));
 
-        scope.declareVariable("List", new JavaFunctionObject((scope, args, info) -> {
+        scope.forceSetVariable("List", new JavaFunctionObject((scope, args, info) -> {
             var list = new ListObject();
             for (var arg : args) {
                 list.asJava().add(arg);
@@ -79,10 +79,10 @@ public class Runtime {
             return list;
         }));
 
-        scope.declareVariable("Map", new JavaFunctionObject((scope, args, info) -> new MapObject()));
-        scope.declareVariable("Object", new JavaFunctionObject((scope, args, info) -> new StringMapObject()));
+        scope.forceSetVariable("Map", new JavaFunctionObject((scope, args, info) -> new MapObject()));
+        scope.forceSetVariable("Object", new JavaFunctionObject((scope, args, info) -> new StringMapObject()));
 
-        scope.declareVariable("Math", new ObjectBuilder()
+        scope.forceSetVariable("Math", new ObjectBuilder()
                         .twoArgRet("min", (a, b) -> new NumberObject(Math.min(a.asDouble(), b.asDouble())))
                         .twoArgRet("max", (a, b) -> new NumberObject(Math.max(a.asDouble(), b.asDouble())))
                         .oneArgRet("round", (a) -> new NumberObject(Math.round(a.asDouble())))
@@ -95,7 +95,7 @@ public class Runtime {
                         .put("TAU", new NumberObject(Math.PI * 2))
                 .build());
 
-        scope.declareVariable("Runtime", new ObjectBuilder()
+        scope.forceSetVariable("Runtime", new ObjectBuilder()
                         .oneArgRet("run", x -> this.run(x.asString()).object())
                         .noArg("currentTimeMillis", () -> new NumberObject(System.currentTimeMillis()))
                         .varArg("interval", (scope, args, info) -> {
@@ -120,7 +120,7 @@ public class Runtime {
 
                 .build());
 
-        scope.declareVariable("Global", scope);
+        scope.forceSetVariable("Global", scope);
     }
 
     public void registerImporter(Function<String, @Nullable XObject<?>> importer) {

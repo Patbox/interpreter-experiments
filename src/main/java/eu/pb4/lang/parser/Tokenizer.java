@@ -40,6 +40,10 @@ public class Tokenizer {
                     case "typeof" -> TokenType.TYPEOF;
                     case "async" -> TokenType.ASYNC;
                     case "await" -> TokenType.AWAIT;
+                    case "yield" -> TokenType.YIELD;
+                    case "case" -> TokenType.CASE;
+                    case "default" -> TokenType.DEFAULT;
+                    case "switch" -> TokenType.SWITCH;
                     default -> TokenType.IDENTIFIER;
                 };
 
@@ -239,6 +243,10 @@ public class Tokenizer {
         TYPEOF,
         ASYNC,
         AWAIT,
+        DEFAULT,
+        SWITCH,
+        CASE,
+        YIELD,
 
         CONTINUE,
         BREAK,
