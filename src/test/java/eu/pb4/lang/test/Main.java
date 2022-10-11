@@ -57,7 +57,7 @@ public class Main {
         frame.setSize(128 * 4, 128 * 3);
         frame.setVisible(true);
 
-        runtime.getScope().declareVariable("Display", new ObjectBuilder()
+        runtime.getScope().quickSetVariable("Display", new ObjectBuilder()
                 .varArg("setPixel", (scope, args, info) -> {
                     frame.image.setRGB(args[0].asInt(), args[1].asInt(), args[2].asInt());
                     return XObject.NULL;
@@ -86,7 +86,7 @@ public class Main {
 
         var time = System.currentTimeMillis();
         runtime.run(input);
-        runtime.importAndRun("testjar:invalid");
+        runtime.importAndRun("testjar:class");
         System.out.println("Time: " + (System.currentTimeMillis() - time));
 
         while (true) {

@@ -10,7 +10,7 @@ public record DefineVariableExpression(String id, Expression value, Position inf
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
         var value = this.value.execute(scope);
         try {
-            scope.declareVariable(id, value);
+            scope.declareVariable(id, value, false);
         } catch (Throwable e) {
             throw new InvalidOperationException(info, e.getMessage());
         }

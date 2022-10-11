@@ -16,7 +16,7 @@ public record LoopForEachExpression(String identifier, Expression iterator, List
 
         while (iterable.hasNext()) {
             var subScope = new ObjectScope(scope);
-            subScope.declareVariable(identifier, iterable.next());
+            subScope.declareVariable(identifier, iterable.next(), false);
             main:
             for (var e : executable) {
                 if (e instanceof LoopSkipExpression loopSkipExpression) {

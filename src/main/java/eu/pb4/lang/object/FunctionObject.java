@@ -33,7 +33,7 @@ public class FunctionObject extends XObject<FunctionObject> {
         var funcScope = new ObjectScope(this.scope);
         var count = Math.min(args.length, this.args.length);
         for (var i = 0; i < count; i++) {
-            funcScope.declareVariable(this.args[i], args[i]);
+            funcScope.declareVariable(this.args[i], args[i], false);
         }
 
         XObject<?> lastObject = XObject.NULL;

@@ -35,8 +35,12 @@ public class Tokenizer {
                     case "break" -> TokenType.BREAK;
                     case "continue" -> TokenType.CONTINUE;
                     case "export" -> TokenType.EXPORT;
+                    case "static" -> TokenType.STATIC;
+                    case "constructor" -> TokenType.CONSTRUCTOR;
+                    case "final" -> TokenType.FINAL;
                     case "import" -> TokenType.IMPORT;
                     case "class" -> TokenType.CLASS;
+                    case "extends" -> TokenType.EXTENDS;
                     case "typeof" -> TokenType.TYPEOF;
                     case "async" -> TokenType.ASYNC;
                     case "await" -> TokenType.AWAIT;
@@ -240,6 +244,7 @@ public class Tokenizer {
         EXPORT,
         IMPORT,
         CLASS,
+        EXTENDS,
         TYPEOF,
         ASYNC,
         AWAIT,
@@ -252,6 +257,9 @@ public class Tokenizer {
         BREAK,
 
 
+        STATIC,
+        CONSTRUCTOR,
+        FINAL,
         FUNCTION_ARROW
     }
 }

@@ -5,8 +5,8 @@ import eu.pb4.lang.exception.ScriptConsumer;
 import eu.pb4.lang.expression.CallFunctionException;
 import eu.pb4.lang.expression.Expression;
 import eu.pb4.lang.object.*;
-import eu.pb4.lang.parser.ExpressionBuilder;
 import eu.pb4.lang.parser.ExpressionMatcher;
+import eu.pb4.lang.parser.TokenReader;
 import eu.pb4.lang.parser.StringReader;
 import eu.pb4.lang.parser.Tokenizer;
 import eu.pb4.lang.util.ObjectBuilder;
@@ -42,7 +42,7 @@ public class Runtime {
         try {
             var tokens = new Tokenizer(new StringReader(input)).getTokens();
 
-            var list = new ExpressionBuilder(new ExpressionMatcher(tokens)).build();
+            var list = new ExpressionMatcher(new TokenReader(tokens)).build();
 
             return execute(list);
         } catch (Throwable e) {
@@ -56,13 +56,13 @@ public class Runtime {
     }
 
     public void defaultGlobals() {
-        scope.forceSetVariable("print", JavaFunctionObject.ofVoid((scope, args, info) -> {
+        scope.quickSetVariable("print", JavaFunctionObject.ofVoid((scope, args, info) -> {
             for (var arg : args) {
                 System.out.println(arg.asString());
             }
         }));
 
-        scope.forceSetVariable("wait", JavaFunctionObject.ofVoid((scope, args, info) -> {
+        scope.quickSetVariable("wait", JavaFunctionObject.ofVoid((scope, args, info) -> {
             try {
                 Thread.sleep(args[0].asInt());
             } catch (InterruptedException e) {
@@ -70,7 +70,7 @@ public class Runtime {
             }
         }));
 
-        scope.forceSetVariable("List", new JavaFunctionObject((scope, args, info) -> {
+        scope.quickSetVariable("List", new JavaFunctionObject((scope, args, info) -> {
             var list = new ListObject();
             for (var arg : args) {
                 list.asJava().add(arg);
@@ -79,10 +79,10 @@ public class Runtime {
             return list;
         }));
 
-        scope.forceSetVariable("Map", new JavaFunctionObject((scope, args, info) -> new MapObject()));
-        scope.forceSetVariable("Object", new JavaFunctionObject((scope, args, info) -> new StringMapObject()));
+        scope.quickSetVariable("Map", new JavaFunctionObject((scope, args, info) -> new MapObject()));
+        scope.quickSetVariable("Object", new JavaFunctionObject((scope, args, info) -> new StringMapObject()));
 
-        scope.forceSetVariable("Math", new ObjectBuilder()
+        scope.quickSetVariable("Math", new ObjectBuilder()
                         .twoArgRet("min", (a, b) -> new NumberObject(Math.min(a.asDouble(), b.asDouble())))
                         .twoArgRet("max", (a, b) -> new NumberObject(Math.max(a.asDouble(), b.asDouble())))
                         .oneArgRet("round", (a) -> new NumberObject(Math.round(a.asDouble())))
@@ -95,7 +95,7 @@ public class Runtime {
                         .put("TAU", new NumberObject(Math.PI * 2))
                 .build());
 
-        scope.forceSetVariable("Runtime", new ObjectBuilder()
+        scope.quickSetVariable("Runtime", new ObjectBuilder()
                         .oneArgRet("run", x -> this.run(x.asString()).object())
                         .noArg("currentTimeMillis", () -> new NumberObject(System.currentTimeMillis()))
                         .varArg("interval", (scope, args, info) -> {
@@ -120,7 +120,7 @@ public class Runtime {
 
                 .build());
 
-        scope.forceSetVariable("Global", scope);
+        scope.quickSetVariable("Global", scope);
     }
 
     public void registerImporter(Function<String, @Nullable XObject<?>> importer) {

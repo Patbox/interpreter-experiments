@@ -1,0 +1,45 @@
+print("Class test started!");
+
+class Test {
+    test = 5;
+    hello;
+
+    constructor(hello) {
+        this.hello = hello;
+    }
+
+    print() {
+        Global.print(this.hello);
+    }
+
+
+    static test() {
+        print("static works!");
+    }
+}
+
+Test.test();
+
+var value = Test("World");
+
+value.print();
+
+var x;
+if (true) {
+    var testificate = true;
+
+    class Test2 extends Test {
+        constructor() {
+            super("wordle");
+        }
+
+        print() {
+            super.print();
+            print("Extended: " + testificate);
+        }
+    }
+
+    x = Test2();
+}
+
+x.print();

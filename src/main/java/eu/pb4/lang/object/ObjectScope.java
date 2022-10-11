@@ -15,11 +15,13 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
     private final Runtime runtime;
 
     private Map<String, XObject<?>> variables = new HashMap<>();
+    private Map<String, Boolean> variablesReadOnly =  new HashMap<>();
+
     private boolean writable = true;
 
     @Nullable
     private final Map<String, XObject<?>> exports;
-    private final XObject<?> exportObject;
+    private XObject<?> exportObject;
 
     public ObjectScope(Runtime runtime, @Nullable ObjectScope parentScope, Type type) {
         if (type != Type.GLOBAL && parentScope == null) {
@@ -34,7 +36,7 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
             case LOCAL -> parentScope.exports;
         };
 
-        this.exportObject = new StaticStringMapObject(this.exports);
+        this.exportObject = XObject.NULL;
     }
 
     public ObjectScope(Runtime runtime, ObjectScope parentScope) {
@@ -58,6 +60,13 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
     }
 
     public void addExport(String key, XObject<?> value) {
+        if (key.isEmpty() && this.exports.isEmpty()) {
+            this.exportObject = value;
+        } else {
+            if (!(this.exportObject instanceof StaticStringMapObject x && x.asJava() == this.exports)) {
+                this.exportObject = new StaticStringMapObject(this.exports);
+            }
+        }
         this.exports.put(key, value);
     }
 
@@ -73,14 +82,15 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
         this.writable = false;
     }
 
-    public void forceSetVariable(String name, XObject<?> value) {
+    public void quickSetVariable(String name, XObject<?> value) {
         this.variables.put(name, value);
     }
 
-    public void declareVariable(String name, XObject<?> value) {
+    public void declareVariable(String name, XObject<?> value, boolean readOnly) {
         if (this.writable) {
             if (!this.variables.containsKey(name)) {
                 this.variables.put(name, value);
+                this.variablesReadOnly.put(name, readOnly);
             } else {
                 throw new RuntimeException(name + " is already defined in this scope!");
             }
@@ -92,6 +102,10 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
     public void setVariable(String name, XObject<?> value) {
         if (this.writable) {
             if (this.variables.containsKey(name)) {
+                if (this.variablesReadOnly.get(name) == Boolean.TRUE) {
+                    throw new RuntimeException(name + " is readonly!");
+                }
+
                 this.variables.put(name, value);
             } else if (this.parentScope != null) {
                 this.parentScope.setVariable(name, value);
@@ -119,8 +133,21 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
     }
 
     @Override
-    public XObject<?> get(ObjectScope scope, String key, Expression.Position info) {
-        return this.getVariable(key);
+    public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
+        try {
+            return this.getVariable(key);
+        } catch (Exception e) {
+            throw new InvalidOperationException(info, e.getMessage());
+        }
+    }
+
+    @Override
+    public void set(ObjectScope scope, String key, XObject<?> object, Expression.Position info) throws InvalidOperationException {
+        try {
+            this.setVariable(key, object);
+        } catch (Exception e) {
+            throw new InvalidOperationException(info, e.getMessage());
+        }
     }
 
     @Override
