@@ -59,6 +59,7 @@ print(Global.Math);
 
 
 import Test "testjar:test2";
+print(Test);
 
 print(Test.get());
 Test.set("Everyone!");
@@ -100,24 +101,44 @@ var hvs = (hue, saturation, value) -> {
 };
 var delta = 0;
 
-Runtime.interval(10, () -> {
+import Fonts "testjar:font";
 
+print(Fonts);
+
+var font = Fonts.read(FS.read("./run/font.mcaf").reader);
+
+Runtime.interval(10, () -> {
+    var time = Runtime.currentTimeMillis();
     var color = hvs((delta / 10000 * 2 + 0.5) % 1, 0.7, 0.8);
     Display.clear(hvs((delta / 10000) % 1, 0.7, 1));
-    for var x = 0; x < 128 * 4 - 1; ++x {
+    hvs((delta / 10000) % 1, 0.7, 1);
+    for var x = 0; x < 128 * 5; ++x {
         var sin = (Math.sin((x + delta) / 40) + 1) * 128 - 0.5;
 
         for var y = sin.floor; y <= sin.ceil; y++ {
-            Display.setPixel(x + 1, y + 128 - 64, color);
-            Display.setPixel(x + 1, y + 128 - 64 + 1, color);
-            Display.setPixel(x, y + 128 - 64, color);
-            Display.setPixel(x, y + 128 - 64 + 1, color);
+            for var i = 0; i < 4; i++ {
+                for var i2 = 0; i2 < 4; i2++ {
+                    Display.setPixel(x + i2, y + i + 256 - 64, color);
+                }
+            }
         };
     };
 
-    delta += Math.sin(-Runtime.currentTimeMillis() / 10000) * 2 + 2;
+    var text = "Hello World!\nMap Canvas API's font format works!";
 
+    font.drawText(text, 64 + 3, 64 + 3, 24, (x, y) -> {
+        Display.setPixel(x, y + Math.sin(x / 40 + delta / 10) * 8, hvs((delta / 100 * 2 + 0.5 + x / 60) % 1, 0.7, 0.3));
+    })
+
+    font.drawText(text, 64, 64, 24, (x, y) -> {
+        Display.setPixel(x, y + Math.sin(x / 40 + delta / 10) * 8, hvs((delta / 100 * 2 + 0.5 + x / 60) % 1, 0.7, 0.8));
+    })
+
+    //delta += (Math.sin(Runtime.currentTimeMillis() / 10000) + 1) * 2 + 2;
+    delta += 4;
     Display.update();
+
+    print(Runtime.currentTimeMillis() - time);
 });
 
 var path = FS.path('./run/files')
@@ -125,7 +146,7 @@ print('FS tests');
 print(path);
 print(FS.mkdir(path));
 print(FS.exists(path));
-print(FS.writeString(path + "/test.txt", "Hello world!\n" * 64));
+print(FS.write(path + "/test.txt", "Hello world!\n" * 64));
 
 
 print('end');

@@ -16,10 +16,10 @@ public record LoopForExpression(List<Expression> initialize, Expression check, E
             exp.execute(subScopeBase);
         }
         XObject<?> lastObject = XObject.NULL;
+        var subScope = new ObjectScope(subScopeBase);
 
         main:
         while (check.execute(subScopeBase) == BooleanObject.TRUE) {
-            var subScope = new ObjectScope(subScopeBase);
             for (var e : executable) {
                 if (e instanceof LoopSkipExpression loopSkipExpression) {
                     if (loopSkipExpression.shouldBreak()) {
@@ -35,6 +35,7 @@ public record LoopForExpression(List<Expression> initialize, Expression check, E
                 }
             }
             increase.execute(subScopeBase);
+            subScope.clear();
         }
 
         return lastObject;

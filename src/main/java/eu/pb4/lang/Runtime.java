@@ -5,6 +5,7 @@ import eu.pb4.lang.exception.ScriptConsumer;
 import eu.pb4.lang.expression.CallFunctionException;
 import eu.pb4.lang.expression.Expression;
 import eu.pb4.lang.libs.FileSystemLibrary;
+import eu.pb4.lang.libs.GZIPLibrary;
 import eu.pb4.lang.object.*;
 import eu.pb4.lang.parser.ExpressionMatcher;
 import eu.pb4.lang.parser.TokenReader;
@@ -65,55 +66,66 @@ public class Runtime {
 
         scope.quickSetVariable("wait", JavaFunctionObject.ofVoid((scope, args, info) -> {
             try {
-                Thread.sleep(args[0].asInt());
+                Thread.sleep(args[0].asInt(info));
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }));
 
         scope.quickSetVariable("List", new JavaFunctionObject(ListObject::create));
+        scope.quickSetVariable("String", new JavaFunctionObject(StringObject::create));
+        scope.quickSetVariable("BitSet", new JavaFunctionObject(BitSetObject::create));
         scope.quickSetVariable("Map", new JavaFunctionObject(MapObject::create));
         scope.quickSetVariable("Object", new JavaFunctionObject((scope, args, info) -> new StringMapObject()));
+        scope.quickSetVariable("ByteArrayWriter", new JavaFunctionObject(ByteArrayWriterObject::create));
+        scope.quickSetVariable("ByteArray", new JavaFunctionObject(ByteArrayObject::create));
 
         scope.quickSetVariable("Math", new ObjectBuilder()
-                        .twoArgRet("min", (a, b) -> new NumberObject(Math.min(a.asDouble(), b.asDouble())))
-                        .twoArgRet("max", (a, b) -> new NumberObject(Math.max(a.asDouble(), b.asDouble())))
-                        .oneArgRet("round", (a) -> new NumberObject(Math.round(a.asDouble())))
-                        .oneArgRet("floor", (a) -> new NumberObject(Math.floor(a.asDouble())))
-                        .oneArgRet("ceil", (a) -> new NumberObject(Math.ceil(a.asDouble())))
-                        .oneArgRet("sin", (a) -> new NumberObject(Math.sin(a.asDouble())))
-                        .oneArgRet("cos", (a) -> new NumberObject(Math.cos(a.asDouble())))
-                        .noArg("random", () -> new NumberObject(Math.random()))
-                        .put("PI",  new NumberObject(Math.PI))
-                        .put("TAU", new NumberObject(Math.PI * 2))
+                        .twoArgRet("min", (a, b, i) -> NumberObject.of(Math.min(a.asDouble(i), b.asDouble(i))))
+                        .twoArgRet("max", (a, b, i) -> NumberObject.of(Math.max(a.asDouble(i), b.asDouble(i))))
+                        .oneArgRet("round", (a, i) -> NumberObject.of(Math.round(a.asDouble(i))))
+                        .oneArgRet("floor", (a, i) -> NumberObject.of(Math.floor(a.asDouble(i))))
+                        .oneArgRet("ceil", (a, i) -> NumberObject.of(Math.ceil(a.asDouble(i))))
+                        .oneArgRet("sin", (a, i) -> NumberObject.of(Math.sin(a.asDouble(i))))
+                        .oneArgRet("cos", (a, i) -> NumberObject.of(Math.cos(a.asDouble(i))))
+                        .noArg("random", () -> NumberObject.of(Math.random()))
+                        .put("PI",  NumberObject.of(Math.PI))
+                        .put("TAU", NumberObject.of(Math.PI * 2))
                 .build());
 
         scope.quickSetVariable("Runtime", new ObjectBuilder()
-                        .oneArgRet("run", x -> this.run(x.asString()).object())
-                        .noArg("currentTimeMillis", () -> new NumberObject(System.currentTimeMillis()))
+                        .oneArgRet("run", (x, i) -> this.run(x.asString()).object())
+                        .noArg("currentTimeMillis", () -> NumberObject.of(System.currentTimeMillis()))
                         .varArg("interval", (scope, args, info) -> {
 
                             var id = this.intervalId++;
-                            this.interval.add(new State(id, System.currentTimeMillis() + args[0].asInt(), args[0].asInt(),
+                            this.interval.add(new State(id, System.currentTimeMillis() + args[0].asInt(info), args[0].asInt(info),
                                     List.of(new CallFunctionException(args[1].asExpression(info), new Expression[0], info)), scope));
 
-                            return new NumberObject(id);
+                            return NumberObject.of(id);
                         })
 
                         .varArg("timeout", (scope, args, info) -> {
                             var id = this.intervalId++;
-                            this.timeout.add(new State(id, System.currentTimeMillis() + args[0].asInt(), args[0].asInt(),
+                            this.timeout.add(new State(id, System.currentTimeMillis() + args[0].asInt(info), args[0].asInt(info),
                                     List.of(new CallFunctionException(args[1].asExpression(info), new Expression[0], info)), scope));
 
-                            return new NumberObject(id);
+                            return NumberObject.of(id);
                         })
 
-                        .oneArgRet("clearInterval", (arg) -> BooleanObject.of(this.interval.removeIf(x -> x.id == arg.asInt())))
-                        .oneArgRet("clearTimeout", (arg) -> BooleanObject.of(this.timeout.removeIf(x -> x.id == arg.asInt())))
+                        .oneArgRet("clearInterval", (arg, i) -> {
+                            var val = arg.asInt(i);
+                            return BooleanObject.of(this.interval.removeIf(x -> x.id == val));
+                        })
+                        .oneArgRet("clearTimeout", (arg, i) -> {
+                            var val = arg.asInt(i);
+                            return BooleanObject.of(this.timeout.removeIf(x -> x.id == val));
+                        })
 
                 .build());
 
         scope.quickSetVariable("FS", FileSystemLibrary.build());
+        scope.quickSetVariable("GZIP", GZIPLibrary.build());
 
         scope.quickSetVariable("Global", scope);
     }

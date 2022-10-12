@@ -1,5 +1,6 @@
 package eu.pb4.lang.parser;
 
+import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.exception.InvalidTokenException;
 import eu.pb4.lang.exception.UnexpectedTokenException;
 import eu.pb4.lang.expression.*;
@@ -126,7 +127,7 @@ public class ExpressionMatcher {
             } else if (next.type() == Tokenizer.TokenType.END) {
                 continue;
             } else {
-                this.matcher.back();
+                throw new UnexpectedTokenException(id, Tokenizer.TokenType.SCOPE_START);
             }
         }
 
@@ -270,6 +271,30 @@ public class ExpressionMatcher {
                 var scope = parseScoped();
 
                 yield new LoopWhileExpression(expression, scope, Expression.Position.from(token));
+            }
+
+            case DO -> {
+                var scope = parseScoped();
+
+                var next = this.matcher.peek();
+
+                if (next.type() != Tokenizer.TokenType.WHILE) {
+                    throw new UnexpectedTokenException(next, Tokenizer.TokenType.WHILE);
+                }
+
+                next = this.matcher.peek();
+                Expression expression;
+                if (next.type() == Tokenizer.TokenType.BRACKET_START) {
+                    expression = parseExpression();
+
+                    if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
+                        throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
+                    }
+                } else {
+                    expression = parseExpression(next);
+                }
+
+                yield new LoopDoWhileExpression(expression, scope, Expression.Position.from(token));
             }
 
             case IF -> parseIf();
@@ -482,8 +507,8 @@ public class ExpressionMatcher {
         } else {
             mergeLeftTokenExpression(list, Tokenizer.TokenType.TYPEOF, TypeOfExpression::of);
 
-            mergeLeftTokenExpression(list, Tokenizer.TokenType.INCREASE, asSetter((x) -> UnaryExpression.add(x, new NumberObject(1).asExpression(Expression.Position.EMPTY)), false));
-            mergeLeftTokenExpression(list, Tokenizer.TokenType.DECREASE, asSetter((x) -> UnaryExpression.remove(x, new NumberObject(1).asExpression(Expression.Position.EMPTY)), false));
+            mergeLeftTokenExpression(list, Tokenizer.TokenType.INCREASE, asSetter((x) -> UnaryExpression.add(x, NumberObject.of(1).asExpression(Expression.Position.EMPTY)), false));
+            mergeLeftTokenExpression(list, Tokenizer.TokenType.DECREASE, asSetter((x) -> UnaryExpression.remove(x, NumberObject.of(1).asExpression(Expression.Position.EMPTY)), false));
 
             mergeUnaryExpressions(list, Tokenizer.TokenType.AND, UnaryExpression::and);
             mergeUnaryExpressions(list, Tokenizer.TokenType.OR, UnaryExpression::or);
@@ -511,6 +536,8 @@ public class ExpressionMatcher {
             mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE_SET, asSetter(UnaryExpression::divide));
             mergeUnaryExpressions(list, Tokenizer.TokenType.ADD_SET, asSetter(UnaryExpression::add));
             mergeUnaryExpressions(list, Tokenizer.TokenType.REMOVE_SET, asSetter(UnaryExpression::remove));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.AND_SET, asSetter(UnaryExpression::and));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.OR_SET, asSetter(UnaryExpression::or));
             mergeUnaryExpressions(list, Tokenizer.TokenType.SET, asSetter((l, r) -> r));
 
             mergeTrinaryExpressions(list, Tokenizer.TokenType.QUESTION_MARK, Tokenizer.TokenType.COLON, IfElseExpression::trinary);
@@ -565,7 +592,16 @@ public class ExpressionMatcher {
                     throw new UnexpectedTokenException(token1, token);
                 }
 
-                list.add(i - 1, val);
+                if (left instanceof DirectObjectExpression dLeft && dLeft.object().isContextless() && right instanceof DirectObjectExpression dRight && dRight.object().isContextless()) {
+                    try {
+                        list.add(i - 1, new DirectObjectExpression(val.execute(null), val.info()));
+                    } catch (Throwable e) {
+                        list.add(i - 1, val);
+                    }
+                } else {
+                    list.add(i - 1, val);
+                }
+
                 i--;
             }
         }
@@ -769,7 +805,7 @@ public class ExpressionMatcher {
                 }
 
                 case ADD, REMOVE, MULTIPLY, DIVIDE, POWER, LESS_THAN, LESS_OR_EQUAL, MORE_THAN, MORE_OR_EQUAL, EQUAL, NEGATE_EQUAL, AND, OR, AND_DOUBLE, OR_DOUBLE,
-                        ADD_SET, REMOVE_SET, MULTIPLY_SET, DIVIDE_SET, POWER_SET, SET, SHIFT_LEFT, SHIFT_RIGHT, DIVIDE_REST -> {
+                        ADD_SET, REMOVE_SET, MULTIPLY_SET, DIVIDE_SET, POWER_SET, SET, SHIFT_LEFT, SHIFT_RIGHT, DIVIDE_REST, OR_SET, AND_SET -> {
                     unorderedOperations.accept(expression);
                     unorderedOperations.accept(next);
                     parseValueToken(this.matcher.peek(), unorderedOperations);
@@ -778,14 +814,14 @@ public class ExpressionMatcher {
 
                 case INCREASE -> {
                     expression = expression instanceof SettableExpression settableExpression
-                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.add(expression, new NumberObject(1).asExpression(Expression.Position.EMPTY)))
-                            : UnaryExpression.add(expression, new NumberObject(1).asExpression(Expression.Position.EMPTY));
+                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.add(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY)))
+                            : UnaryExpression.add(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY));
                 }
 
                 case DECREASE -> {
                     expression = expression instanceof SettableExpression settableExpression
-                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.remove(expression, new NumberObject(1).asExpression(Expression.Position.EMPTY)))
-                            : UnaryExpression.remove(expression, new NumberObject(1).asExpression(Expression.Position.EMPTY));
+                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.remove(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY)))
+                            : UnaryExpression.remove(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY));
                 }
 
                 case SQR_BRACKET_START -> {

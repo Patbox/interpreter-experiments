@@ -160,13 +160,25 @@ public abstract class XObject<T> {
         throw new InvalidOperationException(info, "shifting right of " + this.type() + " with " + object.type());
     }
 
-    public double asDouble() {
-        throw new UnsupportedOperationException(this.getClass() + " / " + this.type() + " isn't a number!");
+    public double asDouble(Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, this.getClass() + " / " + this.type() + " isn't a number!");
     }
 
     public abstract String asString();
 
-    public int asInt() {
-        return (int) this.asDouble();
+    public int asInt(Expression.Position info) throws InvalidOperationException {
+        return (int) this.asDouble(info);
+    }
+
+    public boolean asBoolean(Expression.Position info) throws InvalidOperationException {
+        throw new InvalidOperationException(info, this.getClass() + " / " + this.type() + " isn't a boolean!");
+    }
+
+    public byte[] asBytes(Expression.Position info) throws InvalidOperationException  {
+        throw new InvalidOperationException(info, this.getClass() + " / " + this.type() + " isn't a buffer!");
+    }
+
+    public boolean isContextless() {
+        return false;
     }
 }

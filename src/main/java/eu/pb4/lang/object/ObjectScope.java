@@ -6,16 +6,17 @@ import eu.pb4.lang.expression.Expression;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 
-public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
+public final class ObjectScope extends XObject<Map<String, ObjectScope.ScopeVariable>> {
     @Nullable
     private final ObjectScope parentScope;
     private final Type type;
     private final Runtime runtime;
 
-    private Map<String, XObject<?>> variables = new HashMap<>();
-    private Map<String, Boolean> variablesReadOnly =  new HashMap<>();
+    private final Map<String, ScopeVariable> variables = new IdentityHashMap<>();
+    //private final Map<String, ScopeVariable> initialVariables;
 
     private boolean writable = true;
 
@@ -37,6 +38,13 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
         };
 
         this.exportObject = XObject.NULL;
+
+        /*if (this.parentScope != null) {
+            this.initialVariables = new Object2ObjectOpenHashMap<>(parentScope.variables);
+        } else {
+            this.initialVariables = Map.of();
+        }
+        this.variables.putAll(this.initialVariables);*/
     }
 
     public ObjectScope(Runtime runtime, ObjectScope parentScope) {
@@ -83,14 +91,15 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
     }
 
     public void quickSetVariable(String name, XObject<?> value) {
-        this.variables.put(name, value);
+        this.variables.put(name, new ScopeVariable(name, this, true, value));
     }
 
     public void declareVariable(String name, XObject<?> value, boolean readOnly) {
         if (this.writable) {
-            if (!this.variables.containsKey(name)) {
-                this.variables.put(name, value);
-                this.variablesReadOnly.put(name, readOnly);
+            var obj = this.variables.get(name);
+
+            if (obj == null || obj.scope != this) {
+                this.variables.put(name, new ScopeVariable(name, this, readOnly, value));
             } else {
                 throw new RuntimeException(name + " is already defined in this scope!");
             }
@@ -101,12 +110,10 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
 
     public void setVariable(String name, XObject<?> value) {
         if (this.writable) {
-            if (this.variables.containsKey(name)) {
-                if (this.variablesReadOnly.get(name) == Boolean.TRUE) {
-                    throw new RuntimeException(name + " is readonly!");
-                }
+            var obj = this.variables.get(name);
 
-                this.variables.put(name, value);
+            if (obj != null) {
+                obj.set(value);
             } else if (this.parentScope != null) {
                 this.parentScope.setVariable(name, value);
             } else {
@@ -118,8 +125,10 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
     }
 
     public XObject<?> getVariable(String name) {
-        if (this.variables.containsKey(name)) {
-            return this.variables.get(name);
+        var obj = this.variables.get(name);
+
+        if (obj != null) {
+            return obj.get();
         } else if (this.parentScope != null) {
             return this.parentScope.getVariable(name);
         }
@@ -127,8 +136,12 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
         throw new RuntimeException(name + " isn't defined in this scope!");
     }
 
+    public void clear() {
+        this.variables.clear();
+    }
+
     @Override
-    public @Nullable Map<String, XObject<?>> asJava() {
+    public @Nullable Map<String, ScopeVariable> asJava() {
         return this.variables;
     }
 
@@ -168,5 +181,31 @@ public final class ObjectScope extends XObject<Map<String, XObject<?>>> {
         GLOBAL,
         SCRIPT,
         LOCAL
+    }
+
+    public class ScopeVariable {
+        public final ObjectScope scope;
+        public final boolean readonly;
+        public final String name;
+        private XObject<?> object;
+
+        public ScopeVariable(String name, ObjectScope scope, boolean readonly, XObject<?> object) {
+            this.name = name;
+            this.scope = scope;
+            this.readonly = readonly;
+            this.object = object;
+        }
+
+        public void set(XObject<?> object) {
+            if (this.readonly) {
+                throw new RuntimeException(name + " is readonly!");
+
+            }
+            this.object = object;
+        }
+
+        public XObject<?> get() {
+            return this.object;
+        }
     }
 }

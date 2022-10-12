@@ -55,4 +55,9 @@ public class BooleanObject extends XObject<Boolean> {
 
         return super.or(scope, y, info);
     }
+
+    @Override
+    public boolean asBoolean(Expression.Position info) throws InvalidOperationException {
+        return this.value.booleanValue();
+    }
 }

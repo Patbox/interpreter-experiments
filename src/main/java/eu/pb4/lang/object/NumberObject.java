@@ -11,6 +11,10 @@ public class NumberObject extends XObject<Double> {
         this.value = value;
     }
 
+    public static NumberObject of(double value) {
+        return new NumberObject(value);
+    }
+
     @Override
     public String asString() {
         return this.value - (int) this.value == 0 ? Integer.toString((int) this.value) : Double.toString(this.value);
@@ -26,14 +30,14 @@ public class NumberObject extends XObject<Double> {
     }
 
     @Override
-    public double asDouble() {
+    public double asDouble(Expression.Position info) {
         return this.value;
     }
 
     @Override
     public XObject<?> add(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject(this.value + numberObject.value);
+            return NumberObject.of(this.value + numberObject.value);
         }
 
         return super.add(scope, object, info);
@@ -42,7 +46,7 @@ public class NumberObject extends XObject<Double> {
     @Override
     public XObject<?> subtract(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject(this.value - numberObject.value);
+            return NumberObject.of(this.value - numberObject.value);
         }
 
         return super.subtract(scope, object, info);
@@ -51,7 +55,7 @@ public class NumberObject extends XObject<Double> {
     @Override
     public XObject<?> multiply(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject(this.value * numberObject.value);
+            return NumberObject.of(this.value * numberObject.value);
         }
 
         return super.multiply(scope, object, info);
@@ -60,7 +64,7 @@ public class NumberObject extends XObject<Double> {
     @Override
     public XObject<?> divide(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject(this.value / numberObject.value);
+            return NumberObject.of(this.value / numberObject.value);
         }
 
         return super.divide(scope, object, info);
@@ -69,7 +73,7 @@ public class NumberObject extends XObject<Double> {
     @Override
     public XObject<?> divideRest(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject(this.value % numberObject.value);
+            return NumberObject.of(this.value % numberObject.value);
         }
 
         return super.divideRest(scope, object, info);
@@ -78,7 +82,7 @@ public class NumberObject extends XObject<Double> {
     @Override
     public XObject<?> shiftRight(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject((int) this.value >> (int) numberObject.value);
+            return NumberObject.of((int) this.value >> (int) numberObject.value);
         }
 
         return super.divideRest(scope, object, info);
@@ -87,7 +91,7 @@ public class NumberObject extends XObject<Double> {
     @Override
     public XObject<?> shiftLeft(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject((int) this.value << (int) numberObject.value);
+            return NumberObject.of((int) this.value << (int) numberObject.value);
         }
 
         return super.divideRest(scope, object, info);
@@ -96,7 +100,7 @@ public class NumberObject extends XObject<Double> {
     @Override
     public XObject<?> and(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject((int) this.value & (int) numberObject.value);
+            return NumberObject.of((int) this.value & (int) numberObject.value);
         }
 
         return super.and(scope, object, info);
@@ -105,7 +109,7 @@ public class NumberObject extends XObject<Double> {
     @Override
     public XObject<?> or(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject((int) this.value | (int) numberObject.value);
+            return NumberObject.of((int) this.value | (int) numberObject.value);
         }
 
         return super.or(scope, object, info);
@@ -114,7 +118,7 @@ public class NumberObject extends XObject<Double> {
     @Override
     public XObject<?> power(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
-            return new NumberObject(Math.pow(this.value, numberObject.value));
+            return NumberObject.of(Math.pow(this.value, numberObject.value));
         }
 
         return super.power(scope, object, info);
@@ -140,7 +144,7 @@ public class NumberObject extends XObject<Double> {
 
     @Override
     public XObject<?> negate(ObjectScope scope, Expression.Position info) throws InvalidOperationException {
-        return new NumberObject(-this.value);
+        return NumberObject.of(-this.value);
     }
 
     @Override
@@ -152,10 +156,15 @@ public class NumberObject extends XObject<Double> {
     public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
         return switch (key) {
             case "hexInt" -> new StringObject(Integer.toHexString((int) this.value));
-            case "floor" -> new NumberObject(Math.floor(this.value));
-            case "ceil" -> new NumberObject(Math.ceil(this.value));
-            case "round" -> new NumberObject(Math.round(this.value));
+            case "floor" -> NumberObject.of(Math.floor(this.value));
+            case "ceil" -> NumberObject.of(Math.ceil(this.value));
+            case "round" -> NumberObject.of(Math.round(this.value));
             default -> super.get(scope, key, info);
         };
+    }
+
+    @Override
+    public boolean isContextless() {
+        return true;
     }
 }

@@ -52,18 +52,18 @@ public class Tokenizer {
                 };
 
 
-                list.add(new Token(result.value(), type, result.from(), result.to()));
+                list.add(new Token(((String) result.value()).intern(), type, result.from(), result.to()));
                 continue;
             }
 
             result = this.reader.readString('"');
             if (result != null) {
-                list.add(new Token(result.value(), TokenType.STRING, result.from(), result.to()));
+                list.add(new Token(((String) result.value()).intern(), TokenType.STRING, result.from(), result.to()));
                 continue;
             }
             result = this.reader.readString('\'');
             if (result != null) {
-                list.add(new Token(result.value(), TokenType.STRING, result.from(), result.to()));
+                list.add(new Token(((String) result.value()).intern(), TokenType.STRING, result.from(), result.to()));
                 continue;
             }
 
@@ -83,7 +83,8 @@ public class Tokenizer {
                 default -> {
                     TokenType type = null;
 
-                    if (!this.reader.isDone() && (i == '+' || i == '-' || i == '=' || i == '!' || i == '/' || i == '*' || i == '<' || i == '>' || i == '^' || i == '&' || i == '|')) {
+                    if (!this.reader.isDone() &&
+                            (i == '+' || i == '-' || i == '=' || i == '!' || i == '/' || i == '*' || i == '<' || i == '>' || i == '^' || i == '&' || i == '|')) {
                         var x = this.reader.peek();
 
                         if (i == '/') {
@@ -125,10 +126,26 @@ public class Tokenizer {
                             case '/' -> '=' == x ? TokenType.DIVIDE_SET : null;
                             case '*' -> '=' == x ? TokenType.MULTIPLY_SET : null;
                             case '^' -> '=' == x ? TokenType.POWER_SET : null;
-                            case '<' -> '=' == x ? TokenType.LESS_OR_EQUAL : '<' == x ? TokenType.SHIFT_LEFT : null;
-                            case '>' -> '=' == x ? TokenType.MORE_OR_EQUAL : '>' == x ? TokenType.SHIFT_RIGHT : null;
-                            case '&' -> i == x ? TokenType.AND_DOUBLE : null;
-                            case '|' -> i == x ? TokenType.OR_DOUBLE : null;
+                            case '<' -> switch (x) {
+                                case '=' -> TokenType.LESS_OR_EQUAL;
+                                case '<' -> TokenType.SHIFT_LEFT;
+                                default -> null;
+                            };
+                            case '>' -> switch (x) {
+                                case '=' -> TokenType.MORE_OR_EQUAL;
+                                case '>' -> TokenType.SHIFT_RIGHT;
+                                default -> null;
+                            };
+                            case '&' -> switch (x) {
+                                case '&' -> TokenType.AND_DOUBLE;
+                                case '=' -> TokenType.AND_SET;
+                                default -> null;
+                            };
+                            case '|' -> switch (x) {
+                                case '|' -> TokenType.OR_DOUBLE;
+                                case '=' -> TokenType.OR_SET;
+                                default -> null;
+                            };
                             default -> null;
                         };
 
@@ -260,6 +277,6 @@ public class Tokenizer {
         STATIC,
         CONSTRUCTOR,
         FINAL,
-        FUNCTION_ARROW
+        AND_SET, OR_SET, FUNCTION_ARROW
     }
 }

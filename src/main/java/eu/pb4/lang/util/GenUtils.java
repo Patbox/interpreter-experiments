@@ -11,7 +11,7 @@ public class GenUtils {
         int line = 1;
         int pos = 1;
 
-        for (int i = 0; i < index; i++) {
+        for (int i = 0; i < Math.min(index, arr.length - 1); i++) {
             if (arr[i] == '\n') {
                 line++;
                 pos = 1;
@@ -24,7 +24,11 @@ public class GenUtils {
     }
 
     public static String getSubStringWithoutNewLines(String string, int start, int stop) {
-        return string.substring(Math.max(0, start), Math.min(stop, string.length())).replace("\n", " | ");
+        try {
+            return string.substring(Math.max(0, start), Math.min(stop, string.length() - 1)).replace("\n", " | ");
+        } catch (Throwable e) {
+            return "<<<INTERPRETER ERROR>>>";
+        }
     }
 
     public static void argumentCount(XObject<?>[] args, int count, Expression.Position position) throws InvalidOperationException {

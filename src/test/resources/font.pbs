@@ -1,0 +1,170 @@
+final var MAGIC = 0x7CAF;
+
+print("loading font");
+
+class BitmapFont {
+    characters;
+    defaultGlyph;
+
+    constructor(defaultGlyph, map) {
+        this.defaultGlyph = defaultGlyph;
+        this.characters = map;
+    }
+
+    getGlyphWidth(character, size, offset) {
+        var glyph = this.characters.get(character, this.defaultGlyph);
+        if glyph.logicalHeight == 0 || glyph.height == 0 {
+            return (((glyph.fontWidth())) * (size / 8)).floor;
+        }
+
+        final var textureScale = glyph.height / glyph.logicalHeight;
+        final var baseScale = size / textureScale / 8;
+
+        return ((glyph.fontWidth + offset * textureScale) * baseScale).floor;
+    }
+
+    drawText(text, x, y, size, drawCall) {
+        var posX = 0;
+        var posY = 0;
+
+        for var character : text {
+            if character == 10 {
+               posX = 0;
+               posY += size + 4;
+            } else {
+               posX += this.drawGlyph(character, x + posX, y + posY, size, 2, drawCall);
+            }
+        }
+    }
+
+    drawGlyph(character, x, y, size, offset, drawCall) {
+        var glyph = this.characters.get(character, this.defaultGlyph);
+
+        if glyph.logicalHeight == 0 || glyph.height == 0 {
+            return (glyph.fontWidth * size / 8).floor;
+        }
+
+        final var textureScale = glyph.height / glyph.logicalHeight;
+
+        final var baseScale = size / textureScale / 8;
+
+        final var max = glyph.height * glyph.width;
+        final var scaleVal = baseScale*baseScale;
+
+        for var f = 0; f < max; f++ {
+            if glyph.texture[f] {
+               for var l = 0; l < scaleVal; l++ {
+                  drawCall(
+                     x + ((f % glyph.width).floor * baseScale + l % baseScale).floor,
+                     y + (((f / glyph.width).floor + (7 - glyph.ascend) * textureScale) * baseScale + l / baseScale).floor
+                  );
+                }
+            }
+        }
+
+        return ((glyph.fontWidth + offset * textureScale) * baseScale).floor;
+    }
+
+    containsGlyph(character) {
+        return this.characters[character] != null;
+    }
+
+    static final class Glyph {
+        width;
+        height;
+        ascend;
+        fontWidth;
+        logicalHeight;
+        texture;
+
+        constructor(width, height, ascend, fontWidth, logicalHeight, texture) {
+            this.height = height;
+            this.width = width;
+            this.ascend = ascend;
+            this.fontWidth = fontWidth;
+            this.logicalHeight = logicalHeight;
+            this.texture = texture;
+        }
+    }
+
+    //static final EMPTY_GLYPH = Glyph(0, 0, 0, 0, 0, []);
+}
+
+
+var readVarInt = (stream) -> {
+  var i = 0;
+  var j = 0;
+  var b;
+  do {
+    b = stream.read();
+    i |= (b & 127) << (j++ * 7);
+
+    if (j > 5) {
+       return 0xffffff;
+    }
+   } while ( (b & 128) == 128 );
+
+   return i;
+}
+
+
+var readGlyph = (stream) -> {
+   var width = readVarInt(stream);
+   var height = readVarInt(stream);
+   var ascend = readVarInt(stream);
+   var fontWidth = readVarInt(stream);
+   var logicalHeight = readVarInt(stream);
+
+   var length = readVarInt(stream);
+   var texture = BitSet(stream.readBuffer(length));
+
+   return BitmapFont.Glyph(width, height, ascend, fontWidth, logicalHeight, texture);
+}
+
+export read (stream) -> {
+      if (stream.readShort() == MAGIC) {
+          var version = stream.read();
+          if (version == 1) {
+              var base = stream;
+              if (stream.read() == 1) {
+                  stream = GZIP.reader(stream);
+              }
+
+              var nameLength = readVarInt(stream);
+              var name = String(stream.readBuffer(nameLength));
+
+              var size = readVarInt(stream);
+              var authors = List();
+
+              for var i = 0; i < size; i++ {
+                  authors.add(String(stream.readBuffer(readVarInt(stream))));
+              }
+
+              var descSize = readVarInt(stream);
+
+              var description;
+              if (descSize > 0) {
+                  description = String(stream.readBuffer(descSize));
+              } else {
+                  description = null;
+              }
+
+              //metadata = CanvasFont.Metadata.create(name, authors, description);
+          }
+
+          var map = Map();
+
+          var size = readVarInt(stream);
+
+          for (var x = 0; x < size; x++) {
+              map[readVarInt(stream)] = readGlyph(stream);
+          }
+
+          var defaultGlyph = readGlyph(stream);
+
+          return BitmapFont(defaultGlyph, map);
+      }
+  return null;
+}
+
+export BitmapFont BitmapFont;

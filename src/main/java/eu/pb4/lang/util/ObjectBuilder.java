@@ -1,6 +1,9 @@
 package eu.pb4.lang.util;
 
+import eu.pb4.lang.exception.InvalidOperationException;
+import eu.pb4.lang.expression.Expression;
 import eu.pb4.lang.object.JavaFunctionObject;
+import eu.pb4.lang.object.ObjectScope;
 import eu.pb4.lang.object.StaticStringMapObject;
 import eu.pb4.lang.object.XObject;
 
@@ -42,13 +45,13 @@ public final class ObjectBuilder {
         return this;
     }
 
-    public ObjectBuilder oneArgRet(String name, Function<XObject<?>, XObject<?>> function) {
-        this.map.put(name, new JavaFunctionObject((scope, args, info) -> function.apply(args[0])));
+    public ObjectBuilder oneArgRet(String name, Function function) {
+        this.map.put(name, new JavaFunctionObject((scope, args, info) -> function.apply(args[0], info)));
         return this;
     }
 
-    public ObjectBuilder twoArgRet(String name, BiFunction<XObject<?>, XObject<?>, XObject<?>> function) {
-        this.map.put(name, new JavaFunctionObject((scope, args, info) -> function.apply(args[0], args[1])));
+    public ObjectBuilder twoArgRet(String name, BiFunction function) {
+        this.map.put(name, new JavaFunctionObject((scope, args, info) -> function.apply(args[0], args[1], info)));
 
         return this;
     }
@@ -60,5 +63,14 @@ public final class ObjectBuilder {
 
     public XObject<?> build() {
         return new StaticStringMapObject(this.map);
+    }
+
+
+    public interface Function {
+        XObject<?> apply(XObject<?> object, Expression.Position info) throws InvalidOperationException;
+    }
+
+    public interface BiFunction {
+        XObject<?> apply(XObject<?> object, XObject<?> object2, Expression.Position info) throws InvalidOperationException;
     }
 }

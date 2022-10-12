@@ -46,7 +46,7 @@ public class ClassObject extends XObject<String> {
 
     @Override
     public XObject<?> call(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
-        var object = new InstanceObject(this.superClass);
+        var object = new InstanceObject(this);
         this.populateMethods(object, info);
         this.populateFields(object, info);
         this.callConstructor(object, args, info);

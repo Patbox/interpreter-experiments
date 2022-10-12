@@ -1,22 +1,20 @@
 package eu.pb4.lang.expression;
 
 import eu.pb4.lang.exception.InvalidOperationException;
+import eu.pb4.lang.object.BooleanObject;
 import eu.pb4.lang.object.ForceReturnObject;
 import eu.pb4.lang.object.ObjectScope;
 import eu.pb4.lang.object.XObject;
 
 import java.util.List;
 
-public record LoopForEachExpression(String identifier, Expression iterator, List<Expression> executable, Position info) implements Expression {
+public record LoopDoWhileExpression(Expression check, List<Expression> executable, Position info) implements Expression {
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
-
-        var iterable = iterator.execute(scope).iterator(scope, info);
-        var lastObject = XObject.NULL;
+        XObject<?> lastObject = XObject.NULL;
         var subScope = new ObjectScope(scope);
 
-        while (iterable.hasNext()) {
-            subScope.declareVariable(identifier, iterable.next(), false);
+        do {
             main:
             for (var e : executable) {
                 if (e instanceof LoopSkipExpression loopSkipExpression) {
@@ -33,7 +31,8 @@ public record LoopForEachExpression(String identifier, Expression iterator, List
                 }
             }
             subScope.clear();
-        }
+        } while (check.execute(scope) == BooleanObject.TRUE);
+
         return lastObject;
     }
 }

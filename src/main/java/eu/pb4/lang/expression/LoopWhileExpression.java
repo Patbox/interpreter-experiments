@@ -9,9 +9,9 @@ public record LoopWhileExpression(Expression check, List<Expression> executable,
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
         XObject<?> lastObject = XObject.NULL;
+        var subScope = new ObjectScope(scope);
 
         while (check.execute(scope) == BooleanObject.TRUE) {
-            var subScope = new ObjectScope(scope);
             main:
             for (var e : executable) {
                 if (e instanceof LoopSkipExpression loopSkipExpression) {
@@ -27,6 +27,7 @@ public record LoopWhileExpression(Expression check, List<Expression> executable,
                     }
                 }
             }
+            subScope.clear();
         }
 
         return lastObject;

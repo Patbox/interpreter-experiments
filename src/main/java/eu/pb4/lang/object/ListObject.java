@@ -72,22 +72,18 @@ public class ListObject extends XObject<List<XObject<?>>> {
 
     @Override
     public void set(ObjectScope scope, XObject<?> key, XObject<?> object, Expression.Position info) throws InvalidOperationException {
-        if (key instanceof NumberObject numberObject) {
-            int value = (int) numberObject.value();
-            while (this.list.size() <= value) {
-                this.list.add(XObject.NULL);
-            }
-
-            this.list.set(value, object);
+        int value = object.asInt(info);
+        while (this.list.size() <= value) {
+            this.list.add(XObject.NULL);
         }
 
-        super.set(scope, key, object, info);
+        this.list.set(value, object);
     }
 
     @Override
     public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
         return switch (key) {
-            case "length" -> new NumberObject(this.list.size());
+            case "length" -> NumberObject.of(this.list.size());
             case "add" -> this.addFunc;
             case "remove" -> this.removeFunc;
             case "forEach" -> this.forEachFunc;

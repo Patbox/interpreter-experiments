@@ -13,7 +13,7 @@ public class StringMapObject extends XObject<Map<String, XObject<?>>>{
     public String asString() {
         var builder = new StringBuilder();
 
-        builder.append("<[{");
+        builder.append("<Object {");
 
         var iterator = this.map.entrySet().iterator();
 
@@ -28,7 +28,7 @@ public class StringMapObject extends XObject<Map<String, XObject<?>>>{
             }
         }
 
-        builder.append("}]>");
+        builder.append("}>");
 
         return builder.toString();
     }

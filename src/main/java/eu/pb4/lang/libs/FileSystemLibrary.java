@@ -2,10 +2,7 @@ package eu.pb4.lang.libs;
 
 import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
-import eu.pb4.lang.object.BooleanObject;
-import eu.pb4.lang.object.ObjectScope;
-import eu.pb4.lang.object.StringObject;
-import eu.pb4.lang.object.XObject;
+import eu.pb4.lang.object.*;
 import eu.pb4.lang.util.GenUtils;
 import eu.pb4.lang.util.ObjectBuilder;
 
@@ -14,17 +11,40 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class FileSystemLibrary {
+public final class FileSystemLibrary {
     public static XObject<?> build() {
         return new ObjectBuilder()
                 .varArg("readString", FileSystemLibrary::readString)
-                .varArg("writeString", FileSystemLibrary::writeString)
+                .varArg("read", FileSystemLibrary::read)
+                .varArg("reader", FileSystemLibrary::reader)
+                .varArg("write", FileSystemLibrary::write)
+                .varArg("writer", FileSystemLibrary::writer)
                 .varArg("mkdir", FileSystemLibrary::mkdir)
                 .varArg("existsFile", FileSystemLibrary::existFile)
                 .varArg("existsDir", FileSystemLibrary::existDir)
                 .varArg("exists", FileSystemLibrary::exist)
                 .varArg("path", FileSystemLibrary::path)
                 .build();
+    }
+
+    private static XObject<?> writer(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
+        GenUtils.argumentCount(args, 1, info);
+
+        try {
+            return new StreamWriterObject(Files.newOutputStream(Path.of(args[0].asString())));
+        } catch (IOException e) {
+            return XObject.NULL;
+        }
+    }
+
+    private static XObject<?> reader(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
+        GenUtils.argumentCount(args, 1, info);
+
+        try {
+            return new StreamReaderObject(Files.newInputStream(Path.of(args[0].asString())));
+        } catch (IOException e) {
+            return XObject.NULL;
+        }
     }
 
     private static XObject<?> existDir(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
@@ -67,19 +87,6 @@ public class FileSystemLibrary {
         }
     }
 
-    private static XObject<?> writeString(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
-        GenUtils.argumentCount(args, 2, info);
-
-        var path = Path.of(args[0].asString());
-
-        try {
-            Files.writeString(path, args[1].asString(), StandardCharsets.UTF_8);
-            return BooleanObject.TRUE;
-        } catch (IOException e) {
-            return BooleanObject.FALSE;
-        }
-    }
-
     private static XObject<?> readString(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
         GenUtils.argumentCount(args, 1, info);
 
@@ -87,6 +94,27 @@ public class FileSystemLibrary {
 
         try {
             return new StringObject(Files.readString(path, StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            return XObject.NULL;
+        }
+    }
+
+    private static XObject<?> write(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
+        GenUtils.argumentCount(args, 2, info);
+
+        try {
+            Files.write(Path.of(args[0].asString()), args[1].asBytes(info));
+            return BooleanObject.TRUE;
+        } catch (IOException e) {
+            return BooleanObject.FALSE;
+        }
+    }
+
+    private static XObject<?> read(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
+        GenUtils.argumentCount(args, 1, info);
+
+        try {
+            return new ByteArrayObject(Files.readAllBytes(Path.of(args[0].asString())));
         } catch (IOException e) {
             return XObject.NULL;
         }

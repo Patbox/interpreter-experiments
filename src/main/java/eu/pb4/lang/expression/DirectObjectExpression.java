@@ -8,7 +8,7 @@ public record DirectObjectExpression(XObject<?> object, Position info) implement
     public static Expression fromToken(Tokenizer.Token token) throws InvalidTokenException {
         return new DirectObjectExpression(switch (token.type()) {
             case STRING -> new StringObject(((String) token.value()).replace('\n', '\0').replace("\\n", "\n"));
-            case NUMBER -> new NumberObject((double) token.value());
+            case NUMBER -> NumberObject.of((double) token.value());
             case TRUE -> BooleanObject.TRUE;
             case FALSE -> BooleanObject.FALSE;
             case NULL -> XObject.NULL;

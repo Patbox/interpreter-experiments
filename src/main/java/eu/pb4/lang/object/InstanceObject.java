@@ -19,7 +19,28 @@ public class InstanceObject extends XObject<Map<String, XObject<?>>> {
 
     @Override
     public String asString() {
-        return "{ object " + this.classObject.name() + " }";
+        var builder = new StringBuilder();
+        builder.append("<object ");
+        builder.append(this.classObject.name());
+        builder.append(" {");
+
+        var iterator = this.variables.entrySet().iterator();
+
+        while (iterator.hasNext()) {
+            var x = iterator.next();
+            builder.append(x.getKey());
+            builder.append(" -> ");
+            builder.append(x.getValue().asString());
+
+            if (iterator.hasNext()) {
+                builder.append(", ");
+            }
+        }
+
+        builder.append("}>");
+
+
+        return builder.toString();
     }
 
     @Override

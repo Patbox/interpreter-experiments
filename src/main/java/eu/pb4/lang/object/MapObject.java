@@ -2,6 +2,7 @@ package eu.pb4.lang.object;
 
 import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
+import eu.pb4.lang.util.GenUtils;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -10,12 +11,19 @@ import java.util.Map;
 
 public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
     private Map<XObject<?>, XObject<?>> map = new HashMap<>();
+    private XObject<?> functionGet = new JavaFunctionObject((x, a, i) -> {
+        GenUtils.argumentCount(a, 1, i);
+        if (a.length == 2) {
+            return this.map.getOrDefault(a[0], a[1]);
+        }
+        return this.map.get(a[0]);
+    });
 
     @Override
     public String asString() {
         var builder = new StringBuilder();
 
-        builder.append("<[");
+        builder.append("<Map {");
 
         var iterator = this.map.entrySet().iterator();
 
@@ -30,7 +38,7 @@ public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
             }
         }
 
-        builder.append("]>");
+        builder.append("}>");
 
         return builder.toString();
     }
@@ -58,9 +66,10 @@ public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
     @Override
     public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
         return switch (key) {
-            case "length", "size" -> new NumberObject(this.map.size());
+            case "length", "size" -> NumberObject.of(this.map.size());
             case "values" -> new ListObject(this.map.values());
             case "keys" -> new ListObject(this.map.keySet());
+            case "get" -> this.functionGet;
             case "entries" -> {
                 var list = new ListObject();
 
@@ -93,7 +102,7 @@ public class MapObject extends XObject<Map<XObject<?>, XObject<?>>>{
                 mapObject.asJava().forEach((a, b) -> map.map.put(new StringObject(a), b));
             } else if (arg instanceof ListObject listObject) {
                 for (var i = 0; i < listObject.asJava().size(); i++) {
-                    map.map.put(new NumberObject(i), listObject.asJava().get(i));
+                    map.map.put(NumberObject.of(i), listObject.asJava().get(i));
                 }
             }
         }

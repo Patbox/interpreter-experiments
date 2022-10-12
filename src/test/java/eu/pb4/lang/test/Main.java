@@ -53,17 +53,24 @@ public class Main {
             }
         };
 
-        frame.image = new BufferedImage(128 * 4, 128 * 3, BufferedImage.TYPE_INT_RGB);
-        frame.setSize(128 * 4, 128 * 3);
+        frame.image = new BufferedImage(128 * 5, 128 * 4, BufferedImage.TYPE_INT_RGB);
+        frame.setSize(frame.image.getWidth(), frame.image.getHeight());
         frame.setVisible(true);
 
         runtime.getScope().quickSetVariable("Display", new ObjectBuilder()
                 .varArg("setPixel", (scope, args, info) -> {
-                    frame.image.setRGB(args[0].asInt(), args[1].asInt(), args[2].asInt());
+                    var x = args[0].asInt(info);
+                    var y = args[1].asInt(info);
+
+                    if (x < 0 || y < 0 || x >= frame.image.getWidth() || y >= frame.image.getHeight()) {
+                        return XObject.NULL;
+                    }
+
+                    frame.image.setRGB(x, y, args[2].asInt(info));
                     return XObject.NULL;
                 })
                 .varArg("clear", (scope, args, info) -> {
-                    var c = args[0].asInt();
+                    var c = args[0].asInt(info);
                     for (int x = 0; x < frame.image.getWidth(); x++) {
                         for (int y = 0; y < frame.image.getHeight(); y++) {
                             frame.image.setRGB(x, y, c);
