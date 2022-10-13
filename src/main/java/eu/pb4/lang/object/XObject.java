@@ -26,23 +26,6 @@ public abstract class XObject<T> {
         }
     };
 
-    public static final XObject<?> VOID = new XObject<>() {
-        @Override
-        public String asString() {
-            return "<void>";
-        }
-
-        @Override
-        public String type() {
-            return "void";
-        }
-
-        @Override
-        public Object asJava() {
-            return null;
-        }
-    };
-
     private StringObject toStringValue;
 
     @Nullable
@@ -98,7 +81,7 @@ public abstract class XObject<T> {
     }
 
     public XObject<?> call(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
-        throw new InvalidOperationException(info, "being called as function");
+        throw new InvalidOperationException(info, this.type() + " being called as function");
     }
 
     public void set(ObjectScope scope, XObject<?> key, XObject<?> object, Expression.Position info) throws InvalidOperationException {
@@ -123,7 +106,7 @@ public abstract class XObject<T> {
             return this.toStringValue;
         }
 
-        throw new InvalidOperationException(info, this.type() + "doesn't contain property '" + key + "'");
+        throw new InvalidOperationException(info, this.type() + " doesn't contain property '" + key + "'");
     }
 
     @Override

@@ -94,7 +94,10 @@ public class InstanceObject extends XObject<Map<String, XObject<?>>> {
 
     public ObjectScope withScope(ObjectScope scope) {
         scope = new ObjectScope(scope);
-        scope.declareVariable("this", this, true);
+        scope.declareVariable("this", 0, this, true);
+        if (this.classObject.superClass != null) {
+            scope.declareVariable("super", 1, this.getAccessor(this.classObject.superClass), true);
+        }
         return scope;
     }
 

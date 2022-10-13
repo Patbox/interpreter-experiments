@@ -7,17 +7,21 @@ import eu.pb4.lang.util.Pair;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ClassObject extends XObject<String> {
     private final String name;
-    private final ClassObject superClass;
+    @Nullable
+    public final ClassObject superClass;
     @Nullable
     private final FunctionExpression constructor;
     private final List<Pair<Pair<String, Boolean>, Expression>> fieldConstructor;
     private final ObjectScope scope;
     private final ArrayList<Pair<Pair<String, Boolean>, Expression>> methodConstructor;
     public final boolean finalClass;
+    private final Map<String, ObjectScope.ScopeVariable> staticFields = new HashMap<>();
 
     public ClassObject(ObjectScope scope, String name, ClassObject superClass, FunctionExpression constructor,
                        List<Pair<Pair<String, Boolean>, Expression>> fieldConstructor,
@@ -35,7 +39,7 @@ public class ClassObject extends XObject<String> {
         }
 
         for (var field : staticFieldConstructor) {
-            this.scope.declareVariable(field.left().left(), field.right().execute(scope), field.left().right());
+            this.staticFields.put(field.left().left(), new ObjectScope.ScopeVariable(field.left().left(), this.scope, field.left().right(), field.right().execute(scope)));
         }
     }
 
@@ -57,10 +61,7 @@ public class ClassObject extends XObject<String> {
     public void callConstructor(InstanceObject object, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
         var objectScope = object.withScope(this.scope);
         if (this.constructor != null) {
-            if (this.superClass != null) {
-                scope.declareVariable("super", object.getAccessor(this.superClass), true);
-            }
-            this.constructor.execute(objectScope).call(scope, args, info);
+            this.constructor.execute(objectScope).call(objectScope, args, info);
         } else if (this.superClass != null) {
             this.superClass.callConstructor(object, args, info);
         }
@@ -95,12 +96,12 @@ public class ClassObject extends XObject<String> {
 
     @Override
     public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
-        return this.scope.get(scope, key, info);
+        return this.staticFields.get(key).get();
     }
 
     @Override
     public void set(ObjectScope scope, String key, XObject<?> object, Expression.Position info) throws InvalidOperationException {
-        this.scope.set(scope, key, object, info);
+        this.staticFields.get(key).set(object);
     }
 
     @Override

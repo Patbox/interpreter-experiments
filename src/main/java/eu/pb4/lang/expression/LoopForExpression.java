@@ -11,15 +11,16 @@ import java.util.List;
 public record LoopForExpression(List<Expression> initialize, Expression check, Expression increase, List<Expression> executable, Position info) implements Expression {
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
-        var subScopeBase = new ObjectScope(scope);
+        var subScope = new ObjectScope(scope);
         for (var exp : initialize) {
-            exp.execute(subScopeBase);
+            exp.execute(subScope);
         }
+
+        subScope.updateInitialState();
         XObject<?> lastObject = XObject.NULL;
-        var subScope = new ObjectScope(subScopeBase);
 
         main:
-        while (check.execute(subScopeBase) == BooleanObject.TRUE) {
+        while (check.execute(subScope) == BooleanObject.TRUE) {
             for (var e : executable) {
                 if (e instanceof LoopSkipExpression loopSkipExpression) {
                     if (loopSkipExpression.shouldBreak()) {
@@ -34,8 +35,8 @@ public record LoopForExpression(List<Expression> initialize, Expression check, E
                     }
                 }
             }
-            increase.execute(subScopeBase);
             subScope.clear();
+            increase.execute(subScope);
         }
 
         return lastObject;

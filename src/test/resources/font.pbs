@@ -49,7 +49,7 @@ class BitmapFont {
         final var baseScale = size / textureScale / 8;
 
         final var max = glyph.height * glyph.width;
-        final var scaleVal = baseScale*baseScale;
+        final var scaleVal = baseScale * baseScale;
 
         for var f = 0; f < max; f++ {
             if glyph.texture[f] {
@@ -122,8 +122,11 @@ var readGlyph = (stream) -> {
 }
 
 export read (stream) -> {
-      if (stream.readShort() == MAGIC) {
+      var magic = stream.readShort();
+      print('magic: ' + magic.hexInt)
+      if (magic == MAGIC) {
           var version = stream.read();
+          print('Ver: ' + version)
           if (version == 1) {
               var base = stream;
               if (stream.read() == 1) {
@@ -161,9 +164,12 @@ export read (stream) -> {
           }
 
           var defaultGlyph = readGlyph(stream);
+          print('last')
 
           return BitmapFont(defaultGlyph, map);
       }
+
+      print('bad....')
   return null;
 }
 

@@ -20,7 +20,7 @@ export test2 0xFF
 
 print(2 * (5 * 2 + 8) ^ 2)
 
-var o = 0
+var o = 0;
 
 print(++o + 10);
 print(o++ + 10);
@@ -106,39 +106,42 @@ import Fonts "testjar:font";
 print(Fonts);
 
 var font = Fonts.read(FS.read("./run/font.mcaf").reader);
+print("Font: " + font)
+var lastTime = 0;
 
 Runtime.interval(10, () -> {
     var time = Runtime.currentTimeMillis();
     var color = hvs((delta / 10000 * 2 + 0.5) % 1, 0.7, 0.8);
     Display.clear(hvs((delta / 10000) % 1, 0.7, 1));
-    hvs((delta / 10000) % 1, 0.7, 1);
     for var x = 0; x < 128 * 5; ++x {
-        var sin = (Math.sin((x + delta) / 40) + 1) * 128 - 0.5;
+        var sin = (Math.sin((x + delta) / 40) + 1) * 128 - 0.5 + Math.cos((x + delta) / 6) * 20
 
         for var y = sin.floor; y <= sin.ceil; y++ {
-            for var i = 0; i < 4; i++ {
-                for var i2 = 0; i2 < 4; i2++ {
+            for var i = -2; i < 4; i++ {
+                for var i2 = -2; i2 < 4; i2++ {
                     Display.setPixel(x + i2, y + i + 256 - 64, color);
                 }
             }
         };
     };
 
-    var text = "Hello World!\nMap Canvas API's font format works!";
+    var text = "Hello World!\nMap Canvas's font format works!\nRender time: " + lastTime + "ms";
 
     font.drawText(text, 64 + 3, 64 + 3, 24, (x, y) -> {
-        Display.setPixel(x, y + Math.sin(x / 40 + delta / 10) * 8, hvs((delta / 100 * 2 + 0.5 + x / 60) % 1, 0.7, 0.3));
+        Display.setPixel(x + Math.cos(y / 40 + delta / 10) * 8, y + Math.sin(x / 40 + delta / 10) * 8, hvs((delta / 100 * 2 + 0.5 + x / 60) % 1, 0.7, 0.3));
     })
 
     font.drawText(text, 64, 64, 24, (x, y) -> {
-        Display.setPixel(x, y + Math.sin(x / 40 + delta / 10) * 8, hvs((delta / 100 * 2 + 0.5 + x / 60) % 1, 0.7, 0.8));
+        Display.setPixel(x + Math.cos(y / 40 + delta / 10) * 8, y + Math.sin(x / 40 + delta / 10) * 8, hvs((delta / 100 * 2 + 0.5 + x / 60) % 1, 0.7, 0.8));
+        //Display.setPixel(x, y, 0x0);
     })
 
     //delta += (Math.sin(Runtime.currentTimeMillis() / 10000) + 1) * 2 + 2;
     delta += 4;
     Display.update();
 
-    print(Runtime.currentTimeMillis() - time);
+    lastTime = Runtime.currentTimeMillis() - time;
+    print(lastTime)
 });
 
 var path = FS.path('./run/files')

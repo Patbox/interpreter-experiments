@@ -4,15 +4,11 @@ import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.object.ObjectScope;
 import eu.pb4.lang.object.XObject;
 
-public record SetVariableOldReturnExpression(String name, Expression expression, Position info) implements Expression {
+public record SetVariableOldReturnExpression(String name, int id, Expression expression, Position info) implements Expression {
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
-        var val = scope.getVariable(this.name);
-        try {
-            scope.setVariable(this.name, expression.execute(scope));
-        } catch (Throwable e) {
-            throw new InvalidOperationException(info, e.getMessage());
-        }
+        var val = scope.getVariable(this.name, id);
+        scope.setVariable(this.name, id, expression.execute(scope));
         return val;
     }
 }

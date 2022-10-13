@@ -12,9 +12,11 @@ public class FunctionObject extends XObject<FunctionObject> {
     private final Expression[] expressions;
     private final String[] args;
     private final ObjectScope scope;
+    private final int[] argsIds;
 
-    public FunctionObject(ObjectScope scope, List<String> args, List<Expression> expressions) {
+    public FunctionObject(ObjectScope scope, List<String> args, int[] argsIds, List<Expression> expressions) {
         this.expressions = expressions.toArray(new Expression[0]);
+        this.argsIds = argsIds;
         this.args = args.toArray(new String[0]);
         this.scope = scope;
     }
@@ -32,8 +34,12 @@ public class FunctionObject extends XObject<FunctionObject> {
     public XObject<?> call(ObjectScope scope, XObject<?>[] args, Expression.Position info) throws InvalidOperationException {
         var funcScope = new ObjectScope(this.scope);
         var count = Math.min(args.length, this.args.length);
+
         for (var i = 0; i < count; i++) {
-            funcScope.declareVariable(this.args[i], args[i], false);
+            if (this.argsIds[i] == -1) {
+                throw new InvalidOperationException(info, "AAAAAAAAAA");
+            }
+            funcScope.declareVariable(this.args[i], this.argsIds[i], args[i], false);
         }
 
         XObject<?> lastObject = XObject.NULL;

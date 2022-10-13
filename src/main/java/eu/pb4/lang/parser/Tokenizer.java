@@ -115,7 +115,7 @@ public class Tokenizer {
                                 default -> null;
                             };
                             case '-' -> switch (x) {
-                                case '=' -> TokenType.REMOVE_SET;
+                                case '=' -> TokenType.SUBTRACT_SET;
                                 case '-' -> TokenType.DECREASE;
                                 case '>' -> TokenType.FUNCTION_ARROW;
                                 default -> null;
@@ -158,7 +158,7 @@ public class Tokenizer {
                     if (type == null) {
                         type = switch (i) {
                             case '+' -> TokenType.ADD;
-                            case '-' -> TokenType.REMOVE;
+                            case '-' -> TokenType.SUBTRACT;
                             case '*' -> TokenType.MULTIPLY;
                             case '%' -> TokenType.DIVIDE_REST;
                             case '/' -> TokenType.DIVIDE;
@@ -209,8 +209,8 @@ public class Tokenizer {
         ADD,
         ADD_SET,
         INCREASE,
-        REMOVE,
-        REMOVE_SET,
+        SUBTRACT,
+        SUBTRACT_SET,
         DECREASE,
         DIVIDE,
         DIVIDE_SET,

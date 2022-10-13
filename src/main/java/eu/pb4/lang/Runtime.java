@@ -19,20 +19,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 public class Runtime {
-    private final ObjectScope scope = new ObjectScope(this, null, ObjectScope.Type.GLOBAL);
-
     private final List<Function<String, @Nullable XObject<?>>> importResolvers = new ArrayList<>();
     private final Map<String, XObject<?>> cachedImports = new HashMap<>();
     private List<AsyncState> asyncStates = new ArrayList<>();
+    private final Map<String, XObject<?>> globals = new HashMap<>();
 
     private List<State> timeout = new ArrayList<>();
     private List<State> interval = new ArrayList<>();
     private long lastTickTime;
     private int intervalId;
 
-    public ObjectScope getScope() {
-        return scope;
-    }
 
     public RunResult importAndRun(String path, String input) {
         var result = this.run(input);
@@ -44,7 +40,7 @@ public class Runtime {
         try {
             var tokens = new Tokenizer(new StringReader(input)).getTokens();
 
-            var list = new ExpressionMatcher(new TokenReader(tokens)).build();
+            var list = new ExpressionMatcher(new TokenReader(tokens), input).build();
 
             return execute(list);
         } catch (Throwable e) {
@@ -54,17 +50,17 @@ public class Runtime {
             e.printStackTrace();
         }
 
-        return new RunResult(XObject.NULL, scope);
+        return new RunResult(XObject.NULL, null);
     }
 
     public void defaultGlobals() {
-        scope.quickSetVariable("print", JavaFunctionObject.ofVoid((scope, args, info) -> {
+        this.setGlobal("print", JavaFunctionObject.ofVoid((scope, args, info) -> {
             for (var arg : args) {
                 System.out.println(arg.asString());
             }
         }));
 
-        scope.quickSetVariable("wait", JavaFunctionObject.ofVoid((scope, args, info) -> {
+        this.setGlobal("wait", JavaFunctionObject.ofVoid((scope, args, info) -> {
             try {
                 Thread.sleep(args[0].asInt(info));
             } catch (InterruptedException e) {
@@ -72,15 +68,15 @@ public class Runtime {
             }
         }));
 
-        scope.quickSetVariable("List", new JavaFunctionObject(ListObject::create));
-        scope.quickSetVariable("String", new JavaFunctionObject(StringObject::create));
-        scope.quickSetVariable("BitSet", new JavaFunctionObject(BitSetObject::create));
-        scope.quickSetVariable("Map", new JavaFunctionObject(MapObject::create));
-        scope.quickSetVariable("Object", new JavaFunctionObject((scope, args, info) -> new StringMapObject()));
-        scope.quickSetVariable("ByteArrayWriter", new JavaFunctionObject(ByteArrayWriterObject::create));
-        scope.quickSetVariable("ByteArray", new JavaFunctionObject(ByteArrayObject::create));
+        this.setGlobal("List", new JavaFunctionObject(ListObject::create));
+        this.setGlobal("String", new JavaFunctionObject(StringObject::create));
+        this.setGlobal("BitSet", new JavaFunctionObject(BitSetObject::create));
+        this.setGlobal("Map", new JavaFunctionObject(MapObject::create));
+        this.setGlobal("Object", new JavaFunctionObject((scope, args, info) -> new StringMapObject()));
+        this.setGlobal("ByteArrayWriter", new JavaFunctionObject(ByteArrayWriterObject::create));
+        this.setGlobal("ByteArray", new JavaFunctionObject(ByteArrayObject::create));
 
-        scope.quickSetVariable("Math", new ObjectBuilder()
+        this.setGlobal("Math", new ObjectBuilder()
                         .twoArgRet("min", (a, b, i) -> NumberObject.of(Math.min(a.asDouble(i), b.asDouble(i))))
                         .twoArgRet("max", (a, b, i) -> NumberObject.of(Math.max(a.asDouble(i), b.asDouble(i))))
                         .oneArgRet("round", (a, i) -> NumberObject.of(Math.round(a.asDouble(i))))
@@ -93,7 +89,7 @@ public class Runtime {
                         .put("TAU", NumberObject.of(Math.PI * 2))
                 .build());
 
-        scope.quickSetVariable("Runtime", new ObjectBuilder()
+        this.setGlobal("Runtime", new ObjectBuilder()
                         .oneArgRet("run", (x, i) -> this.run(x.asString()).object())
                         .noArg("currentTimeMillis", () -> NumberObject.of(System.currentTimeMillis()))
                         .varArg("interval", (scope, args, info) -> {
@@ -124,10 +120,14 @@ public class Runtime {
 
                 .build());
 
-        scope.quickSetVariable("FS", FileSystemLibrary.build());
-        scope.quickSetVariable("GZIP", GZIPLibrary.build());
+        this.setGlobal("FS", FileSystemLibrary.build());
+        this.setGlobal("GZIP", GZIPLibrary.build());
 
-        scope.quickSetVariable("Global", scope);
+        this.setGlobal("Global", new StaticStringMapObject(this.globals));
+    }
+
+    public void setGlobal(String key, XObject<?> obj) {
+        this.globals.put(key, obj);
     }
 
     public void registerImporter(Function<String, @Nullable XObject<?>> importer) {
@@ -197,12 +197,11 @@ public class Runtime {
     }
 
     public RunResult execute(List<Expression> expr) throws InvalidOperationException {
-        return execute(expr, this.scope);
+        return execute(expr, new ObjectScope(this, null, ObjectScope.Type.SCRIPT));
     }
 
     public RunResult execute(List<Expression> expr, ObjectScope scope) throws InvalidOperationException {
         XObject<?> lastObject = XObject.NULL;
-        scope = new ObjectScope(this, scope);
 
         for (var expression : expr) {
             lastObject = expression.execute(scope);
@@ -222,6 +221,11 @@ public class Runtime {
         //this.asyncStates.add(state);
 
         return state.future;
+    }
+
+    @Nullable
+    public XObject<?> getGlobal(String name) {
+        return this.globals.get(name);
     }
 
     public record RunResult(XObject<?> object, ObjectScope scope) {}

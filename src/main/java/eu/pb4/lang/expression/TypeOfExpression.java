@@ -9,7 +9,7 @@ public record TypeOfExpression(Expression expression, Position info) implements 
 
 
     public static Expression of(Expression expression) {
-        return new TypeOfExpression(expression, new Position(expression.info().start() - 6, expression.info().end()));
+        return new TypeOfExpression(expression, new Position(expression.info().start() - 6, expression.info().end(), expression.info().script()));
     }
 
     @Override

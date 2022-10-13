@@ -1,11 +1,11 @@
 package eu.pb4.lang.parser;
 
-import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.exception.InvalidTokenException;
 import eu.pb4.lang.exception.UnexpectedTokenException;
 import eu.pb4.lang.expression.*;
 import eu.pb4.lang.object.*;
 import eu.pb4.lang.util.Pair;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,16 +16,23 @@ import java.util.function.Function;
 public class ExpressionMatcher {
 
     private final TokenReader matcher;
+    private final String script;
 
-    public ExpressionMatcher(TokenReader matcher) {
+    public ExpressionMatcher(TokenReader matcher, String script) {
+        this.script = script;
         this.matcher = matcher;
     }
 
 
     public List<Expression> build() throws UnexpectedTokenException, InvalidTokenException {
         var list = new ArrayList<Expression>();
+
+        var scope = new VariableId2IntMapper(null, 0);
+        scope.declare("this");
+        scope.declare("super");
+
         while (!this.matcher.isDone()) {
-            parseMultiExpression(list::add);
+            parseMultiExpression(list::add, scope);
         }
         list.removeIf(x -> x == Expression.NOOP);
 
@@ -33,7 +40,7 @@ public class ExpressionMatcher {
     }
 
 
-    public void parseMultiExpression(Consumer<Expression> consumer) throws UnexpectedTokenException, InvalidTokenException {
+    public void parseMultiExpression(Consumer<Expression> consumer, VariableId2IntMapper scope) throws UnexpectedTokenException, InvalidTokenException {
         var token = this.matcher.peek();
 
         var isFinal = false;
@@ -43,16 +50,16 @@ public class ExpressionMatcher {
         }
 
         switch (token.type()) {
-            case DECLARE_VAR -> parseVariableDefinition(consumer, isFinal);
+            case DECLARE_VAR -> parseVariableDefinition(consumer, isFinal, scope);
             case CLASS -> {
-                var classExpr = parseClass(token, isFinal);
-                consumer.accept(new DefineVariableExpression(classExpr.name(), classExpr, true, classExpr.info()));
+                var classExpr = parseClass(token, isFinal, scope);
+                consumer.accept(new DefineVariableExpression(classExpr.name(), scope.declare(classExpr.name()), classExpr, true, classExpr.info()));
             }
-            default -> consumer.accept(parseExpression(token));
+            default -> consumer.accept(parseExpression(token, scope));
         }
     }
 
-    private CreateClassExpression parseClass(Tokenizer.Token token, boolean isFinalClass) throws UnexpectedTokenException, InvalidTokenException {
+    private CreateClassExpression parseClass(Tokenizer.Token token, boolean isFinalClass, VariableId2IntMapper scope) throws UnexpectedTokenException, InvalidTokenException {
         var id = this.matcher.peek();
 
         if (id.type() != Tokenizer.TokenType.IDENTIFIER) {
@@ -77,6 +84,8 @@ public class ExpressionMatcher {
             throw new UnexpectedTokenException(id, Tokenizer.TokenType.SCOPE_START);
         }
 
+        scope.declare((String) id.value());
+
         FunctionExpression constructor = null;
         var fieldConstructor = new ArrayList<Pair<Pair<String, Boolean>, Expression>>();
         var staticConstructor = new ArrayList<Pair<Pair<String, Boolean>, Expression>>();
@@ -85,8 +94,8 @@ public class ExpressionMatcher {
             next = this.matcher.peek();
 
             if (next.type() == Tokenizer.TokenType.SCOPE_END) {
-                return new CreateClassExpression((String) id.value(), superClass, constructor, fieldConstructor, staticConstructor, isFinalClass,
-                                Expression.Position.from(token));
+                return new CreateClassExpression((String) id.value(), superClass, superClass != null ? scope.get(superClass) : -1, constructor, fieldConstructor, staticConstructor, isFinalClass,
+                                Expression.Position.from(token, script));
             }
 
             boolean isFinal = false;
@@ -94,7 +103,7 @@ public class ExpressionMatcher {
             var fields = fieldConstructor;
 
             if (next.type() == Tokenizer.TokenType.CONSTRUCTOR) {
-                constructor = readClassFunction();
+                constructor = readClassFunction(scope);
                 continue;
             }
 
@@ -115,13 +124,13 @@ public class ExpressionMatcher {
 
                 if (next.type() == Tokenizer.TokenType.BRACKET_START) {
                     this.matcher.back();
-                    expression = readClassFunction();
+                    expression = readClassFunction(scope);
                 } else if (next.type() == Tokenizer.TokenType.SET) {
-                    expression = this.parseExpression();
+                    expression = this.parseExpression(scope);
                 }
                 fields.add(new Pair<>(new Pair<>(fieldId, isFinal), expression));
             } else if (next.type() == Tokenizer.TokenType.CLASS) {
-                var classExpr = parseClass(next, isFinal);
+                var classExpr = parseClass(next, isFinal, scope);
 
                 fields.add(new Pair<>(new Pair<>(classExpr.name(), isFinal), classExpr));
             } else if (next.type() == Tokenizer.TokenType.END) {
@@ -133,21 +142,25 @@ public class ExpressionMatcher {
 
         throw new UnexpectedTokenException(id, Tokenizer.TokenType.SCOPE_START);
     }
-    public FunctionExpression readClassFunction() throws UnexpectedTokenException, InvalidTokenException {
+    public FunctionExpression readClassFunction(VariableId2IntMapper variableScope) throws UnexpectedTokenException, InvalidTokenException {
         var token = this.matcher.peek();
         if (token.type() == Tokenizer.TokenType.BRACKET_START) {
+            var lScope = variableScope.up();
             var args = new ArrayList<String>();
+            var argsIds = new IntArrayList();
 
             while (!this.matcher.isDone()) {
                 var next = this.matcher.peek();
 
                 if (next.type() == Tokenizer.TokenType.IDENTIFIER) {
-                    args.add((String) next.value());
+                    var nextId = (String) next.value();
+                    args.add(nextId);
+                    argsIds.add(lScope.declare(nextId));
 
                     next = this.matcher.peek();
 
                     if (next.type() == Tokenizer.TokenType.BRACKET_END) {
-                        return new FunctionExpression(args, parseScoped(), Expression.Position.betweenIn(token, next));
+                        return new FunctionExpression(args, argsIds.toIntArray(), parseScoped(lScope), Expression.Position.betweenIn(token, next, script));
                     } else if (next.type() == Tokenizer.TokenType.COMMA) {
                         if (this.matcher.peek().type() == Tokenizer.TokenType.IDENTIFIER) {
                             this.matcher.back();
@@ -159,7 +172,7 @@ public class ExpressionMatcher {
                         throw new UnexpectedTokenException(token, Tokenizer.TokenType.BRACKET_END);
                     }
                 } else if (next.type() == Tokenizer.TokenType.BRACKET_END) {
-                    return new FunctionExpression(args, parseScoped(), Expression.Position.betweenIn(token, next));
+                    return new FunctionExpression(args, argsIds.toIntArray(), parseScoped(lScope), Expression.Position.betweenIn(token, next, script));
                 } else {
                     throw new UnexpectedTokenException(token, Tokenizer.TokenType.BRACKET_END);
                 }
@@ -171,26 +184,30 @@ public class ExpressionMatcher {
     }
 
 
-    public Expression parseExpression() throws UnexpectedTokenException, InvalidTokenException {
-        return parseExpression(this.matcher.peek());
+    public Expression parseExpression(VariableId2IntMapper scope) throws UnexpectedTokenException, InvalidTokenException {
+        return parseExpression(this.matcher.peek(), scope);
     }
 
-    public Expression parseExpression(Tokenizer.Token token) throws UnexpectedTokenException, InvalidTokenException {
+    public Expression parseExpression(Tokenizer.Token token, VariableId2IntMapper scope) throws UnexpectedTokenException, InvalidTokenException {
         if (token.type() == Tokenizer.TokenType.BRACKET_START) {
             var index = this.matcher.index();
+            var lScope = scope.up();
             var args = new ArrayList<String>();
+            var argsIds = new IntArrayList();
 
             while (!this.matcher.isDone()) {
                 var next = this.matcher.peek();
 
                 if (next.type() == Tokenizer.TokenType.IDENTIFIER) {
-                    args.add((String) next.value());
+                    var argId = (String) next.value();
+                    args.add(argId);
+                    argsIds.add(lScope.declare(argId));
 
                     next = this.matcher.peek();
 
                     if (next.type() == Tokenizer.TokenType.BRACKET_END) {
                         if (this.matcher.peek().type() == Tokenizer.TokenType.FUNCTION_ARROW) {
-                            return new FunctionExpression(args, parseScoped(), Expression.Position.betweenIn(token, next));
+                            return new FunctionExpression(args, argsIds.toIntArray(), parseScoped(lScope), Expression.Position.betweenIn(token, next, script));
                         }
                         break;
                     } else if (next.type() == Tokenizer.TokenType.COMMA) {
@@ -205,7 +222,7 @@ public class ExpressionMatcher {
                     }
                 } else if (next.type() == Tokenizer.TokenType.BRACKET_END) {
                     if (this.matcher.peek().type() == Tokenizer.TokenType.FUNCTION_ARROW) {
-                        return new FunctionExpression(args, parseScoped(), Expression.Position.betweenIn(token, next));
+                        return new FunctionExpression(args,  argsIds.toIntArray(), parseScoped(lScope), Expression.Position.betweenIn(token, next, script));
                     }
                 } else {
                     break;
@@ -216,22 +233,22 @@ public class ExpressionMatcher {
         }
 
         return switch (token.type()) {
-            case IDENTIFIER, STRING, NUMBER, TRUE, FALSE, NULL, BRACKET_START, SQR_BRACKET_START, SCOPE_START, INCREASE, DECREASE, TYPEOF -> parseValueToken(token);
-            case NEGATE, REMOVE -> new NegateExpression(parseExpression(), Expression.Position.from(token));
+            case IDENTIFIER, STRING, NUMBER, TRUE, FALSE, NULL, BRACKET_START, SQR_BRACKET_START, SCOPE_START, INCREASE, DECREASE, TYPEOF -> parseValueToken(token, scope);
+            case NEGATE, SUBTRACT -> new NegateExpression(parseExpression(scope), Expression.Position.from(token, script));
 
-            case ASYNC -> new AsyncExpression(parseScoped(), Expression.Position.from(token));
+            case ASYNC -> new AsyncExpression(parseScoped(scope), Expression.Position.from(token, script));
 
             case EXPORT -> {
                 var start = this.matcher.index();
                 var id = this.matcher.peek();
 
                 if (id.type() == Tokenizer.TokenType.IDENTIFIER) {
-                    yield new ExportExpression(new StringObject((String) id.value()).asExpression(Expression.Position.from(id)), parseExpression(), Expression.Position.from(token));
+                    yield new ExportExpression(new StringObject((String) id.value()).asExpression(Expression.Position.from(id, script)), parseExpression(scope), Expression.Position.from(token, script));
                 } else if (id.type() == Tokenizer.TokenType.DEFAULT) {
-                    yield new ExportExpression(new StringObject("").asExpression(Expression.Position.from(id)), parseExpression(), Expression.Position.from(token));
+                    yield new ExportExpression(new StringObject("").asExpression(Expression.Position.from(id, script)), parseExpression(scope), Expression.Position.from(token, script));
                 } else if (id.type() == Tokenizer.TokenType.BRACKET_START) {
                     this.matcher.index(start);
-                    yield parseValueToken(token);
+                    yield parseValueToken(token, scope);
                 } else {
                     throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
                 }
@@ -243,38 +260,36 @@ public class ExpressionMatcher {
                 var path = this.matcher.peek();
 
                 if (id.type() == Tokenizer.TokenType.IDENTIFIER && path.type() == Tokenizer.TokenType.STRING) {
-                    yield new DefineVariableExpression((String) id.value(), new ImportExpression(new StringObject((String) path.value()).asExpression(Expression.Position.from(id)), Expression.Position.from(token)), true, Expression.Position.from(token));
+                    yield new DefineVariableExpression((String) id.value(), scope.declare((String) id.value()), new ImportExpression(new StringObject((String) path.value()).asExpression(Expression.Position.from(id, script)), Expression.Position.from(token, script)), true, Expression.Position.from(token, script));
                 } else if (id.type() == Tokenizer.TokenType.BRACKET_START) {
                     this.matcher.index(start);
-                    yield parseValueToken(token);
+                    yield parseValueToken(token, scope);
                 } else {
                     throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
                 }
             }
-            case RETURN -> new ReturnExpression(parseEmptyExpression(), ForceReturnObject.Type.FULL, Expression.Position.from(token));
-            case YIELD -> new ReturnExpression(parseEmptyExpression(), ForceReturnObject.Type.SWITCH, Expression.Position.from(token));
-            case CONTINUE -> new LoopSkipExpression(false, Expression.Position.from(token));
-            case BREAK -> new LoopSkipExpression(true, Expression.Position.from(token));
+            case RETURN -> new ReturnExpression(parseEmptyExpression(scope), ForceReturnObject.Type.FULL, Expression.Position.from(token, script));
+            case YIELD -> new ReturnExpression(parseEmptyExpression(scope), ForceReturnObject.Type.SWITCH, Expression.Position.from(token, script));
+            case CONTINUE -> new LoopSkipExpression(false, Expression.Position.from(token, script));
+            case BREAK -> new LoopSkipExpression(true, Expression.Position.from(token, script));
             case WHILE -> {
                 var next = this.matcher.peek();
                 Expression expression;
                 if (next.type() == Tokenizer.TokenType.BRACKET_START) {
-                    expression = parseExpression();
+                    expression = parseExpression(token, scope);
 
                     if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
                     }
                 } else {
-                    expression = parseExpression(next);
+                    expression = parseExpression(next, scope);
                 }
 
-                var scope = parseScoped();
-
-                yield new LoopWhileExpression(expression, scope, Expression.Position.from(token));
+                yield new LoopWhileExpression(expression, parseScoped(scope), Expression.Position.from(token, script));
             }
 
             case DO -> {
-                var scope = parseScoped();
+                var scopeExpr = parseScoped(scope);
 
                 var next = this.matcher.peek();
 
@@ -285,31 +300,31 @@ public class ExpressionMatcher {
                 next = this.matcher.peek();
                 Expression expression;
                 if (next.type() == Tokenizer.TokenType.BRACKET_START) {
-                    expression = parseExpression();
+                    expression = parseExpression(scope);
 
                     if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
                     }
                 } else {
-                    expression = parseExpression(next);
+                    expression = parseExpression(next, scope);
                 }
 
-                yield new LoopDoWhileExpression(expression, scope, Expression.Position.from(token));
+                yield new LoopDoWhileExpression(expression, scopeExpr, Expression.Position.from(token, script));
             }
 
-            case IF -> parseIf();
+            case IF -> parseIf(scope);
 
             case SWITCH -> {
                 var next = this.matcher.peek();
                 Expression value;
                 if (next.type() == Tokenizer.TokenType.BRACKET_START) {
-                    value = parseExpression();
+                    value = parseExpression(scope);
 
                     if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
                     }
                 } else {
-                    value = parseExpression(next);
+                    value = parseExpression(next, scope);
                 }
 
                 var peek = this.matcher.peek();
@@ -325,21 +340,21 @@ public class ExpressionMatcher {
                     peek = this.matcher.peek();
 
                     if (peek.type() == Tokenizer.TokenType.SCOPE_END) {
-                        yield new SwitchExpression(value, expressions, defaultExpr, Expression.Position.from(next));
+                        yield new SwitchExpression(value, expressions, defaultExpr, Expression.Position.from(next, script));
                     } else if (peek.type() == Tokenizer.TokenType.CASE) {
-                        var expr = this.parseExpression();
+                        var expr = this.parseExpression(scope);
 
                         if (this.matcher.peek().type() != Tokenizer.TokenType.FUNCTION_ARROW) {
                             throw new UnexpectedTokenException(peek, Tokenizer.TokenType.FUNCTION_ARROW);
                         }
 
-                        expressions.add(new Pair<>(expr, parseScoped()));
+                        expressions.add(new Pair<>(expr, parseScoped(scope)));
                     } else if (peek.type() == Tokenizer.TokenType.DEFAULT) {
                         if (this.matcher.peek().type() != Tokenizer.TokenType.FUNCTION_ARROW) {
                             throw new UnexpectedTokenException(peek, Tokenizer.TokenType.FUNCTION_ARROW);
                         }
 
-                        defaultExpr = parseScoped();
+                        defaultExpr = parseScoped(scope);
                     } else if (peek.type() == Tokenizer.TokenType.END) {
                         continue;
                     } else {
@@ -355,6 +370,7 @@ public class ExpressionMatcher {
                 List<Expression> init = new ArrayList<>();
                 Expression expression;
                 Expression post;
+                var lScope = scope.up();
                 if (next.type() == Tokenizer.TokenType.BRACKET_START) {
                     {
                         var start = this.matcher.index();
@@ -366,28 +382,27 @@ public class ExpressionMatcher {
                                 && idToken.type() == Tokenizer.TokenType.IDENTIFIER
                                 && colonToken.type() == Tokenizer.TokenType.COLON
                         ) {
-                            var iterator = parseExpression();
+                            var iterator = parseExpression(token, lScope);
                             if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
                                 throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
                             }
-                            var scope = parseScoped();
-                            yield new LoopForEachExpression((String) idToken.value(), iterator, scope, Expression.Position.from(token));
+                            yield new LoopForEachExpression((String) idToken.value(), lScope.declare((String) idToken.value()), iterator, parseScoped(lScope), Expression.Position.from(token, script));
                         }
 
                         this.matcher.index(start);
                     }
 
-                    parseMultiExpression(init::add);
+                    parseMultiExpression(init::add, lScope);
                     init.removeIf(x -> x == Expression.NOOP);
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.END);
                     }
-                    expression = parseExpression();
+                    expression = parseExpression(lScope);
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.END);
                     }
 
-                    post = parseExpression();
+                    post = parseExpression(lScope);
                     if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
                     }
@@ -404,76 +419,77 @@ public class ExpressionMatcher {
                                 && idToken.type() == Tokenizer.TokenType.IDENTIFIER
                                 && colonToken.type() == Tokenizer.TokenType.COLON
                         ) {
-                            yield new LoopForEachExpression((String) idToken.value(), parseExpression(), parseScoped(), Expression.Position.from(token));
+                            yield new LoopForEachExpression((String) idToken.value(), lScope.declare((String) idToken.value()), parseExpression(lScope), parseScoped(lScope), Expression.Position.from(token, script));
                         }
 
                         this.matcher.index(start);
                     }
 
-                    parseMultiExpression(init::add);
+                    parseMultiExpression(init::add, lScope);
                     init.removeIf(x -> x == Expression.NOOP);
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.END);
                     }
-                    expression = parseExpression();
+                    expression = parseExpression(lScope);
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.END);
                     }
-                    post = parseExpression();
+                    post = parseExpression(lScope);
 
                 }
 
-                yield new LoopForExpression(init, expression, post, parseScoped(), Expression.Position.from(token));
+                yield new LoopForExpression(init, expression, post, parseScoped(lScope), Expression.Position.from(token, script));
             }
             case END -> Expression.NOOP;
             default -> throw new UnexpectedTokenException(token, Tokenizer.TokenType.END);
         };
     }
 
-    private Expression parseIf() throws UnexpectedTokenException, InvalidTokenException {
+    private Expression parseIf(VariableId2IntMapper scope) throws UnexpectedTokenException, InvalidTokenException {
         var next = this.matcher.peek();
         Expression expression;
         if (next.type() == Tokenizer.TokenType.BRACKET_START) {
-            expression = parseExpression();
+            expression = parseExpression(scope);
 
             if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
                 throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);
             }
         } else {
-            expression = parseExpression(next);
+            expression = parseExpression(next, scope);
         }
 
-        var scope = parseScoped();
+        var scopeExr = parseScoped(scope);
 
         next = this.matcher.peek();
         if (next.type() == Tokenizer.TokenType.ELSE) {
             if (this.matcher.peek().type() == Tokenizer.TokenType.IF) {
                 this.matcher.back();
-                return new IfElseExpression(expression, scope, List.of(parseIf()), Expression.Position.from(next));
+                return new IfElseExpression(expression, scopeExr, List.of(parseIf(scope)), Expression.Position.from(next, script));
             } else {
                 this.matcher.back();
-                return new IfElseExpression(expression, scope, parseScoped(), Expression.Position.from(next));
+                return new IfElseExpression(expression, scopeExr, parseScoped(scope), Expression.Position.from(next, script));
             }
         } else {
             this.matcher.back();
-            return new IfElseExpression(expression, scope, List.of(), Expression.Position.from(next));
+            return new IfElseExpression(expression, scopeExr, List.of(), Expression.Position.from(next, script));
         }
     }
 
-    private Expression parseEmptyExpression() throws UnexpectedTokenException, InvalidTokenException {
+    private Expression parseEmptyExpression(VariableId2IntMapper scope) throws UnexpectedTokenException, InvalidTokenException {
         var next = this.matcher.peek();
 
         if (next.type() == Tokenizer.TokenType.END) {
             return Expression.NOOP;
         } else {
-            return this.parseExpression(next);
+            return this.parseExpression(next, scope);
         }
     }
 
-    private List<Expression> parseScoped() throws UnexpectedTokenException, InvalidTokenException {
+    private List<Expression> parseScoped(VariableId2IntMapper scope) throws UnexpectedTokenException, InvalidTokenException {
         var peek = this.matcher.peek();
 
         if (peek.type() == Tokenizer.TokenType.SCOPE_START) {
+            scope = scope.up();
             var list = new ArrayList<Expression>();
 
             while (!this.matcher.isDone()) {
@@ -482,7 +498,7 @@ public class ExpressionMatcher {
                     return list;
                 } else {
                     this.matcher.back();
-                    parseMultiExpression(list::add);
+                    parseMultiExpression(list::add, scope);
                     list.removeIf(x -> x == Expression.NOOP);
 
                     if (this.matcher.peek().type() != Tokenizer.TokenType.END) {
@@ -493,51 +509,51 @@ public class ExpressionMatcher {
             throw new UnexpectedTokenException(peek, Tokenizer.TokenType.SCOPE_END);
         } else {
             this.matcher.back();
-            return List.of(parseExpression());
+            return List.of(parseExpression(scope));
         }
     }
 
-    private Expression parseValueToken(Tokenizer.Token token) throws UnexpectedTokenException, InvalidTokenException {
+    private Expression parseValueToken(Tokenizer.Token token, VariableId2IntMapper scope) throws UnexpectedTokenException, InvalidTokenException {
         var list = new ArrayList<>();
 
-        parseValueToken(token, list::add);
+        parseValueToken(token, list::add, scope);
 
         if (list.size() == 1) {
             return (Expression) list.get(0);
         } else {
             mergeLeftTokenExpression(list, Tokenizer.TokenType.TYPEOF, TypeOfExpression::of);
 
-            mergeLeftTokenExpression(list, Tokenizer.TokenType.INCREASE, asSetter((x) -> UnaryExpression.add(x, NumberObject.of(1).asExpression(Expression.Position.EMPTY)), false));
-            mergeLeftTokenExpression(list, Tokenizer.TokenType.DECREASE, asSetter((x) -> UnaryExpression.remove(x, NumberObject.of(1).asExpression(Expression.Position.EMPTY)), false));
+            mergeLeftTokenExpression(list, Tokenizer.TokenType.INCREASE, asSetter((x) -> new UnaryExpression.Add(x, NumberObject.of(1).asExpression(Expression.Position.EMPTY)), false));
+            mergeLeftTokenExpression(list, Tokenizer.TokenType.DECREASE, asSetter((x) -> new UnaryExpression.Subtract(x, NumberObject.of(1).asExpression(Expression.Position.EMPTY)), false));
 
-            mergeUnaryExpressions(list, Tokenizer.TokenType.AND, UnaryExpression::and);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.OR, UnaryExpression::or);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.SHIFT_LEFT, UnaryExpression::shiftLeft);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.SHIFT_RIGHT, UnaryExpression::shiftRight);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.AND, UnaryExpression.And::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.OR, UnaryExpression.Or::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.SHIFT_LEFT, UnaryExpression.ShiftLeft::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.SHIFT_RIGHT, UnaryExpression.ShiftRight::new);
 
-            mergeUnaryExpressions(list, Tokenizer.TokenType.POWER, UnaryExpression::power);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.MULTIPLY, UnaryExpression::multiply);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE, UnaryExpression::divide);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE_REST, UnaryExpression::divideRest);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.ADD, UnaryExpression::add);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.REMOVE, UnaryExpression::remove);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.POWER, UnaryExpression.Power::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.MULTIPLY, UnaryExpression.Multiply::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE, UnaryExpression.Divide::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE_REST, UnaryExpression.DivideRest::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.ADD, UnaryExpression.Add::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.SUBTRACT, UnaryExpression.Subtract::new);
 
-            mergeUnaryExpressions(list, Tokenizer.TokenType.LESS_OR_EQUAL, UnaryExpression::lessOrEqual);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.LESS_THAN, UnaryExpression::lessThan);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.MORE_OR_EQUAL, UnaryExpression::moreOrEqual);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.MORE_THAN, UnaryExpression::moreThan);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.EQUAL, UnaryExpression::equal);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.NEGATE_EQUAL, (l, r) -> new NegateExpression(UnaryExpression.equal(l, r), Expression.Position.betweenEx(l.info(), r.info())));
-            mergeUnaryExpressions(list, Tokenizer.TokenType.AND_DOUBLE, UnaryExpression::and);
-            mergeUnaryExpressions(list, Tokenizer.TokenType.OR_DOUBLE, UnaryExpression::or);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.LESS_OR_EQUAL, UnaryExpression.LessOrEqual::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.LESS_THAN, UnaryExpression.LessThan::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.MORE_OR_EQUAL, UnaryExpression.MoreOrEqual::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.MORE_THAN, UnaryExpression.MoreThan::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.EQUAL, UnaryExpression.Equal::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.NEGATE_EQUAL, (l, r) -> new NegateExpression(new UnaryExpression.Equal(l, r), Expression.Position.betweenEx(l.info(), r.info())));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.AND_DOUBLE, UnaryExpression.And::new);
+            mergeUnaryExpressions(list, Tokenizer.TokenType.OR_DOUBLE, UnaryExpression.Or::new);
 
-            mergeUnaryExpressions(list, Tokenizer.TokenType.POWER_SET, asSetter(UnaryExpression::power));
-            mergeUnaryExpressions(list, Tokenizer.TokenType.MULTIPLY_SET, asSetter(UnaryExpression::multiply));
-            mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE_SET, asSetter(UnaryExpression::divide));
-            mergeUnaryExpressions(list, Tokenizer.TokenType.ADD_SET, asSetter(UnaryExpression::add));
-            mergeUnaryExpressions(list, Tokenizer.TokenType.REMOVE_SET, asSetter(UnaryExpression::remove));
-            mergeUnaryExpressions(list, Tokenizer.TokenType.AND_SET, asSetter(UnaryExpression::and));
-            mergeUnaryExpressions(list, Tokenizer.TokenType.OR_SET, asSetter(UnaryExpression::or));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.POWER_SET, asSetter(UnaryExpression.Power::new));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.MULTIPLY_SET, asSetter(UnaryExpression.Multiply::new));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.DIVIDE_SET, asSetter(UnaryExpression.Divide::new));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.ADD_SET, asSetter(UnaryExpression.Add::new));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.SUBTRACT_SET, asSetter(UnaryExpression.Subtract::new));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.AND_SET, asSetter(UnaryExpression.And::new));
+            mergeUnaryExpressions(list, Tokenizer.TokenType.OR_SET, asSetter(UnaryExpression.Or::new));
             mergeUnaryExpressions(list, Tokenizer.TokenType.SET, asSetter((l, r) -> r));
 
             mergeTrinaryExpressions(list, Tokenizer.TokenType.QUESTION_MARK, Tokenizer.TokenType.COLON, IfElseExpression::trinary);
@@ -580,6 +596,34 @@ public class ExpressionMatcher {
     }
 
     private void mergeUnaryExpressions(ArrayList<Object> list, Tokenizer.TokenType token, BiFunction<Expression, Expression, Expression> expressionBuilder) throws UnexpectedTokenException {
+        boolean changed;
+        do {
+            changed = false;
+            for (int i = 0; i < list.size(); i++) {
+                if (list.get(i) instanceof Tokenizer.Token token1 && token1.type() == token
+                        && list.get(i - 1) instanceof DirectObjectExpression dLeft && list.get(i + 1) instanceof DirectObjectExpression dRight && dLeft.object().isContextless() && dRight.object().isContextless()) {
+                    var left = (Expression) list.remove(i - 1);
+                    list.remove(i - 1);
+                    var right = (Expression) list.remove(i - 1);
+
+                    var val = expressionBuilder.apply(left, right);
+
+                    if (val == null) {
+                        throw new UnexpectedTokenException(token1, token);
+                    }
+
+                    changed = true;
+
+                    try {
+                        list.add(i - 1, new DirectObjectExpression(val.execute(null), val.info()));
+                    } catch (Throwable e) {
+                        list.add(i - 1, val);
+                    }
+                    i--;
+                }
+            }
+        } while (changed);
+
         for (int i = 0; i < list.size(); i++) {
             if (list.get(i) instanceof Tokenizer.Token token1 && token1.type() == token) {
                 var left = (Expression) list.remove(i - 1);
@@ -592,15 +636,7 @@ public class ExpressionMatcher {
                     throw new UnexpectedTokenException(token1, token);
                 }
 
-                if (left instanceof DirectObjectExpression dLeft && dLeft.object().isContextless() && right instanceof DirectObjectExpression dRight && dRight.object().isContextless()) {
-                    try {
-                        list.add(i - 1, new DirectObjectExpression(val.execute(null), val.info()));
-                    } catch (Throwable e) {
-                        list.add(i - 1, val);
-                    }
-                } else {
-                    list.add(i - 1, val);
-                }
+                list.add(i - 1, val);
 
                 i--;
             }
@@ -663,17 +699,17 @@ public class ExpressionMatcher {
         }
     }
 
-    private void parseValueToken(Tokenizer.Token token, Consumer<Object> unorderedOperations) throws UnexpectedTokenException, InvalidTokenException {
-        if (token.type() == Tokenizer.TokenType.INCREASE || token.type() == Tokenizer.TokenType.DECREASE || token.type() == Tokenizer.TokenType.REMOVE
+    private void parseValueToken(Tokenizer.Token token, Consumer<Object> unorderedOperations, VariableId2IntMapper variableScope) throws UnexpectedTokenException, InvalidTokenException {
+        if (token.type() == Tokenizer.TokenType.INCREASE || token.type() == Tokenizer.TokenType.DECREASE || token.type() == Tokenizer.TokenType.SUBTRACT
                 || token.type() == Tokenizer.TokenType.TYPEOF) {
             unorderedOperations.accept(token);
             token = this.matcher.peek();
         }
 
         Expression expression = switch (token.type()) {
-            case IDENTIFIER -> new GetVariableExpression((String) token.value(), Expression.Position.from(token));
+            case IDENTIFIER -> new GetVariableExpression((String) token.value(), variableScope.get((String) token.value()), Expression.Position.from(token, script));
             case BRACKET_START -> {
-                var exp = parseExpression();
+                var exp = parseExpression(variableScope);
                 var next = this.matcher.peek();
 
                 if (next.type() == Tokenizer.TokenType.BRACKET_END) {
@@ -689,17 +725,17 @@ public class ExpressionMatcher {
 
                 while ((next = this.matcher.peek()).type() != Tokenizer.TokenType.SQR_BRACKET_END && !this.matcher.isDone()) {
                     this.matcher.back();
-                    val.add(parseExpression());
+                    val.add(parseExpression(variableScope));
                     next = this.matcher.peek();
                     if (next.type() == Tokenizer.TokenType.SQR_BRACKET_END) {
-                        yield new ListExpression(val.toArray(new Expression[0]), Expression.Position.betweenIn(token, next));
+                        yield new ListExpression(val.toArray(new Expression[0]), Expression.Position.betweenIn(token, next, script));
                     } else if (next.type() != Tokenizer.TokenType.COMMA) {
                         throw new UnexpectedTokenException(next, Tokenizer.TokenType.COMMA);
                     }
                 }
 
                 if (next.type() == Tokenizer.TokenType.SQR_BRACKET_END) {
-                    yield new DirectObjectExpression(new ListObject(), Expression.Position.betweenIn(token, next));
+                    yield new DirectObjectExpression(new ListObject(), Expression.Position.betweenIn(token, next, script));
                 } else {
                     throw new UnexpectedTokenException(next, Tokenizer.TokenType.SQR_BRACKET_END);
                 }
@@ -721,17 +757,17 @@ public class ExpressionMatcher {
                     var possibleId = this.matcher.peek();
 
                     if (possibleId.value() instanceof String str && !isMap) {
-                        pair[0] = new DirectObjectExpression(new StringObject(str), Expression.Position.from(possibleId));
+                        pair[0] = new DirectObjectExpression(new StringObject(str), Expression.Position.from(possibleId, script));
                     } else {
                         this.matcher.back();
-                        pair[0] = parseExpression();
+                        pair[0] = parseExpression(variableScope);
                     }
 
                     if (this.matcher.peek().type() != Tokenizer.TokenType.COLON) {
                         throw new UnexpectedTokenException(next, Tokenizer.TokenType.COLON);
                     }
 
-                    pair[1] = parseExpression();
+                    pair[1] = parseExpression(variableScope);
 
                     val.add(pair);
 
@@ -739,12 +775,12 @@ public class ExpressionMatcher {
                     if (next.type() == Tokenizer.TokenType.SCOPE_END) {
                         if (isMap) {
                             if ((next = this.matcher.peek()).type() == Tokenizer.TokenType.SCOPE_END) {
-                                yield new MapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next));
+                                yield new MapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next, script));
                             } else {
                                 throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
                             }
                         } else {
-                            yield new StringMapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next));
+                            yield new StringMapExpression(val.toArray(new Expression[0][]), Expression.Position.betweenIn(token, next, script));
                         }
                     } else if (next.type() != Tokenizer.TokenType.COMMA) {
                         throw new UnexpectedTokenException(next, Tokenizer.TokenType.COMMA);
@@ -754,12 +790,12 @@ public class ExpressionMatcher {
                 if (next.type() == Tokenizer.TokenType.SCOPE_END) {
                     if (isMap) {
                         if ((next = this.matcher.peek()).type() == Tokenizer.TokenType.SCOPE_END) {
-                            yield new DirectObjectExpression(new MapObject(), Expression.Position.betweenIn(token, next));
+                            yield new DirectObjectExpression(new MapObject(), Expression.Position.betweenIn(token, next, script));
                         } else {
                             throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
                         }
                     } else {
-                        yield new DirectObjectExpression(new StringMapObject(), Expression.Position.betweenIn(token, next));
+                        yield new DirectObjectExpression(new StringMapObject(), Expression.Position.betweenIn(token, next, script));
                     }
                 } else {
                     throw new UnexpectedTokenException(next, Tokenizer.TokenType.SCOPE_END);
@@ -769,7 +805,7 @@ public class ExpressionMatcher {
 
             case IMPORT -> {
                 this.matcher.peek();
-                var x = new ImportExpression(parseExpression(), Expression.Position.from(token));
+                var x = new ImportExpression(parseExpression(variableScope), Expression.Position.from(token, script));
                 if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
                     throw new UnexpectedTokenException(token, Tokenizer.TokenType.BRACKET_END);
                 }
@@ -777,18 +813,18 @@ public class ExpressionMatcher {
             }
             case EXPORT -> {
                 this.matcher.peek();
-                var arg1 = parseExpression();
+                var arg1 = parseExpression(variableScope);
                 if (this.matcher.peek().type() != Tokenizer.TokenType.COMMA) {
                     throw new UnexpectedTokenException(token, Tokenizer.TokenType.COMMA);
                 }
 
-                var x = new ExportExpression(arg1, parseExpression(), Expression.Position.from(token));
+                var x = new ExportExpression(arg1, parseExpression(variableScope), Expression.Position.from(token, script));
                 if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
                     throw new UnexpectedTokenException(token, Tokenizer.TokenType.BRACKET_END);
                 }
                 yield x;
             }
-            default -> DirectObjectExpression.fromToken(token);
+            default -> DirectObjectExpression.fromToken(token, this.script);
         };
 
         while (!this.matcher.isDone()) {
@@ -798,34 +834,34 @@ public class ExpressionMatcher {
                 case DOT -> {
                     var key = this.matcher.peek();
                     if (key.type() == Tokenizer.TokenType.IDENTIFIER) {
-                        expression = new GetStringExpression(expression, (String) key.value(), Expression.Position.from(token));
+                        expression = new GetStringExpression(expression, (String) key.value(), Expression.Position.from(token, script));
                     } else if (key.type() == Tokenizer.TokenType.CLASS) {
-                        expression = new GetClassExpression(expression, Expression.Position.from(token));
+                        expression = new GetClassExpression(expression, Expression.Position.from(token, script));
                     }
                 }
 
-                case ADD, REMOVE, MULTIPLY, DIVIDE, POWER, LESS_THAN, LESS_OR_EQUAL, MORE_THAN, MORE_OR_EQUAL, EQUAL, NEGATE_EQUAL, AND, OR, AND_DOUBLE, OR_DOUBLE,
-                        ADD_SET, REMOVE_SET, MULTIPLY_SET, DIVIDE_SET, POWER_SET, SET, SHIFT_LEFT, SHIFT_RIGHT, DIVIDE_REST, OR_SET, AND_SET -> {
+                case ADD, SUBTRACT, MULTIPLY, DIVIDE, POWER, LESS_THAN, LESS_OR_EQUAL, MORE_THAN, MORE_OR_EQUAL, EQUAL, NEGATE_EQUAL, AND, OR, AND_DOUBLE, OR_DOUBLE,
+                        ADD_SET, SUBTRACT_SET, MULTIPLY_SET, DIVIDE_SET, POWER_SET, SET, SHIFT_LEFT, SHIFT_RIGHT, DIVIDE_REST, OR_SET, AND_SET -> {
                     unorderedOperations.accept(expression);
                     unorderedOperations.accept(next);
-                    parseValueToken(this.matcher.peek(), unorderedOperations);
+                    parseValueToken(this.matcher.peek(), unorderedOperations, variableScope);
                     return;
                 }
 
                 case INCREASE -> {
                     expression = expression instanceof SettableExpression settableExpression
-                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.add(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY)))
-                            : UnaryExpression.add(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY));
+                            ? settableExpression.asSetterWithOldReturn(new UnaryExpression.Add(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY)))
+                            : new UnaryExpression.Add(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY));
                 }
 
                 case DECREASE -> {
                     expression = expression instanceof SettableExpression settableExpression
-                            ? settableExpression.asSetterWithOldReturn(UnaryExpression.remove(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY)))
-                            : UnaryExpression.remove(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY));
+                            ? settableExpression.asSetterWithOldReturn(new UnaryExpression.Subtract(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY)))
+                            : new UnaryExpression.Subtract(expression, NumberObject.of(1).asExpression(Expression.Position.EMPTY));
                 }
 
                 case SQR_BRACKET_START -> {
-                    expression = new GetObjectExpression(expression, parseExpression(this.matcher.peek()), Expression.Position.from(token));
+                    expression = new GetObjectExpression(expression, parseExpression(this.matcher.peek(), variableScope), Expression.Position.from(token, script));
 
                     if (this.matcher.peek().type() != Tokenizer.TokenType.SQR_BRACKET_END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.SQR_BRACKET_END);
@@ -846,7 +882,7 @@ public class ExpressionMatcher {
                                     throw new UnexpectedTokenException(nexter, Tokenizer.TokenType.BRACKET_END);
                                 }
 
-                                expression = new CallFunctionException(expression, args.toArray(new Expression[0]), Expression.Position.from(token));
+                                expression = new CallFunctionException(expression, args.toArray(new Expression[0]), Expression.Position.from(token, script));
                                 work = false;
                                 break;
                             }
@@ -859,7 +895,7 @@ public class ExpressionMatcher {
                             }
                             default -> {
                                 lastIsComma = false;
-                                args.add(parseExpression(nexter));
+                                args.add(parseExpression(nexter, variableScope));
                             }
                         }
                     }
@@ -874,16 +910,16 @@ public class ExpressionMatcher {
         }
     }
 
-    private void parseVariableDefinition(Consumer<Expression> consumer, boolean isFinal) throws UnexpectedTokenException, InvalidTokenException {
+    private void parseVariableDefinition(Consumer<Expression> consumer, boolean isFinal, VariableId2IntMapper scope) throws UnexpectedTokenException, InvalidTokenException {
         var id = this.matcher.peek();
         var value = XObject.NULL.asExpression(Expression.Position.EMPTY);
         if (id.type() == Tokenizer.TokenType.IDENTIFIER) {
             while (true) {
                 var next = this.matcher.peek();
                 if (next.type() == Tokenizer.TokenType.SET) {
-                    value = parseExpression();
+                    value = parseExpression(scope);
                 } else if (next.type() == Tokenizer.TokenType.COMMA) {
-                    consumer.accept(new DefineVariableExpression((String) id.value(), value, isFinal, Expression.Position.betweenIn(id, next)));
+                    consumer.accept(new DefineVariableExpression((String) id.value(), scope.declare((String) id.value()), value, isFinal, Expression.Position.betweenIn(id, next, script)));
                     id = this.matcher.peek();
                     if (id.type() != Tokenizer.TokenType.IDENTIFIER) {
                         throw new UnexpectedTokenException(id, Tokenizer.TokenType.IDENTIFIER);
@@ -892,7 +928,7 @@ public class ExpressionMatcher {
                     value = XObject.NULL.asExpression(Expression.Position.EMPTY);
                 } else {
                     this.matcher.back();
-                    consumer.accept(new DefineVariableExpression((String) id.value(), value, isFinal, Expression.Position.betweenIn(id, next)));
+                    consumer.accept(new DefineVariableExpression((String) id.value(), scope.declare((String) id.value()), value, isFinal, Expression.Position.betweenIn(id, next, script)));
                     break;
                 }
             }
@@ -904,4 +940,6 @@ public class ExpressionMatcher {
     private interface TriFunction<T, T1, T2, T3> {
         T3 apply(T t, T1 t1, T2 t2);
     }
+
+
 }

@@ -8,7 +8,7 @@ import eu.pb4.lang.util.Pair;
 
 import java.util.List;
 
-public record CreateClassExpression(String name, String superClass, FunctionExpression constructor,
+public record CreateClassExpression(String name, String superClass, int superClassId, FunctionExpression constructor,
                                     List<Pair<Pair<String, Boolean>, Expression>> fieldConstructor,
                                     List<Pair<Pair<String, Boolean>, Expression>> staticFieldConstructor,
                                     boolean isFinalClass, Position info) implements Expression {
@@ -18,7 +18,7 @@ public record CreateClassExpression(String name, String superClass, FunctionExpr
 
         if (this.superClass != null) {
             try {
-                var obj = scope.getVariable(this.superClass);
+                var obj = scope.getVariable(this.superClass, this.superClassId);
                 if (obj instanceof ClassObject classObject) {
                     superClass = classObject;
 

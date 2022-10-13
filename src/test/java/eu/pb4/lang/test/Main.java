@@ -57,7 +57,7 @@ public class Main {
         frame.setSize(frame.image.getWidth(), frame.image.getHeight());
         frame.setVisible(true);
 
-        runtime.getScope().quickSetVariable("Display", new ObjectBuilder()
+        runtime.setGlobal("Display", new ObjectBuilder()
                 .varArg("setPixel", (scope, args, info) -> {
                     var x = args[0].asInt(info);
                     var y = args[1].asInt(info);
@@ -89,8 +89,6 @@ public class Main {
 
                 .build());
 
-        runtime.getScope().freeze();
-
         var time = System.currentTimeMillis();
         runtime.run(input);
         runtime.importAndRun("testjar:class");
@@ -101,7 +99,5 @@ public class Main {
 
             Thread.sleep(1);
         }
-
-
     }
 }

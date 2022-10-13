@@ -18,11 +18,11 @@ public interface Expression {
         throw new InvalidOperationException(this.info(), text);
     }
 
-    record Position(int start, int end) {
-        public static final Position EMPTY = new Position(-1, -1);
+    record Position(int start, int end, String script) {
+        public static final Position EMPTY = new Position(-1, -1, "");
 
-        public static Position from(Tokenizer.Token token) {
-            return new Position(token.start(), token.end());
+        public static Position from(Tokenizer.Token token, String script) {
+            return new Position(token.start(), token.end(), script);
         }
 
         public static Position betweenEx(Position left, Position right) {
@@ -31,11 +31,11 @@ public interface Expression {
             } else if (right == EMPTY) {
                 return left;
             }
-            return new Position(left.end(), right.start());
+            return new Position(left.end(), right.start(), right.script);
         }
 
-        public static Position betweenEx(Tokenizer.Token left, Tokenizer.Token right) {
-            return new Position(left.end(), right.start());
+        public static Position betweenEx(Tokenizer.Token left, Tokenizer.Token right, String script) {
+            return new Position(left.end(), right.start(), script);
         }
 
         public static Position betweenIn(Position left, Position right) {
@@ -45,11 +45,11 @@ public interface Expression {
                 return left;
             }
 
-            return new Position(left.start(), right.end());
+            return new Position(left.start(), right.end(), right.script);
         }
 
-        public static Position betweenIn(Tokenizer.Token left, Tokenizer.Token right) {
-            return new Position(left.start(), right.end());
+        public static Position betweenIn(Tokenizer.Token left, Tokenizer.Token right, String script) {
+            return new Position(left.start(), right.end(), script);
         }
     }
 }

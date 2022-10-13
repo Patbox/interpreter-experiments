@@ -28,7 +28,6 @@ public class TokenReader {
         this.index = value;
     }
 
-    @Nullable
     public Tokenizer.Token peek() {
         return this.isDone() ? null : this.tokens[this.index++];
     }

@@ -6,9 +6,9 @@ import eu.pb4.lang.object.XObject;
 
 import java.util.List;
 
-public record FunctionExpression(List<String> args, List<Expression> expressions, Position info) implements Expression {
+public record FunctionExpression(List<String> args, int[] argIds, List<Expression> expressions, Position info) implements Expression {
     @Override
     public XObject<?> execute(ObjectScope scope) {
-        return new FunctionObject(scope, args, expressions);
+        return new FunctionObject(scope, args, argIds, expressions);
     }
 }
