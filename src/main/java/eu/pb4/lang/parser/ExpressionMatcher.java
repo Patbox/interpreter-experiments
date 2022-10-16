@@ -234,6 +234,15 @@ public class ExpressionMatcher {
 
         return switch (token.type()) {
             case IDENTIFIER, STRING, NUMBER, TRUE, FALSE, NULL, BRACKET_START, SQR_BRACKET_START, SCOPE_START, INCREASE, DECREASE, TYPEOF -> parseValueToken(token, scope);
+            case DEBUG -> {
+               var next = this.matcher.peek();
+
+               if (next.type() == Tokenizer.TokenType.IDENTIFIER) {
+                   yield new DebugExpression((String) next.value(), Expression.Position.betweenIn(token, next, this.script));
+               }
+
+               throw new UnexpectedTokenException(next, Tokenizer.TokenType.IDENTIFIER);
+            }
             case NEGATE, SUBTRACT -> new NegateExpression(parseExpression(scope), Expression.Position.from(token, script));
 
             case ASYNC -> new AsyncExpression(parseScoped(scope), Expression.Position.from(token, script));
@@ -276,7 +285,7 @@ public class ExpressionMatcher {
                 var next = this.matcher.peek();
                 Expression expression;
                 if (next.type() == Tokenizer.TokenType.BRACKET_START) {
-                    expression = parseExpression(token, scope);
+                    expression = parseExpression(scope);
 
                     if (this.matcher.peek().type() != Tokenizer.TokenType.BRACKET_END) {
                         throw new UnexpectedTokenException(this.matcher.previous(), Tokenizer.TokenType.BRACKET_END);

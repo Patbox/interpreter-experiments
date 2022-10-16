@@ -3,15 +3,12 @@ package eu.pb4.lang.util;
 import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
 import eu.pb4.lang.object.JavaFunctionObject;
-import eu.pb4.lang.object.ObjectScope;
 import eu.pb4.lang.object.StaticStringMapObject;
 import eu.pb4.lang.object.XObject;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 public final class ObjectBuilder {

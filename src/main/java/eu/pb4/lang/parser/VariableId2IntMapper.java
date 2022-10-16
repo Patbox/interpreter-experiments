@@ -9,6 +9,7 @@ public final class VariableId2IntMapper {
     private final VariableId2IntMapper parent;
     private final Object2IntMap<String> stringToId = new Object2IntOpenHashMap<>();
     private int currentId;
+    private int highest;
 
     public VariableId2IntMapper(VariableId2IntMapper parent, int currentId) {
         this.parent = parent;
@@ -20,11 +21,25 @@ public final class VariableId2IntMapper {
 
         if (exist == -1) {
             var val = currentId++;
+
+            this.setHighest(val);
             this.stringToId.put(id, val);
             return val;
         } else {
             return exist;
         }
+    }
+
+    private void setHighest(int val) {
+        if (this.parent != null) {
+            this.parent.setHighest(val);
+        } else {
+            this.highest = Math.max(this.highest, val);
+        }
+    }
+
+    public int getHighest() {
+        return this.highest;
     }
 
     public int get(String id) {

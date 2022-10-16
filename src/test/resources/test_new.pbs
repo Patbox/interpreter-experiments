@@ -1,0 +1,50 @@
+export test 5;
+
+var test = 5;
+
+test *= 6;
+
+var testFunc = (a, b) -> {
+  print ("Function called")
+  return a * b;
+}
+print(testFunc)
+
+print(testFunc("a", 4))
+
+print(test);
+print(Math.random());
+print(test == 30);
+
+if test == 30 {
+    print("is 30")
+} else {
+    print("isn't 30")
+}
+
+print("And now it runs on bytecode");
+print("Hello world! " * test);
+
+var x = 0;
+print("Pre While: ");
+
+while ((x += 3) < 15) {
+    print("Loop test: " + x);
+}
+
+print("Post While: ");
+
+print("Pre doWhile: ");
+
+do {
+  print(x)
+} while (10 < x--);
+
+print("Post doWhile: ");
+
+print("Pre for: ");
+for var i = 0; i < 3; i++ {
+    print(i)
+}
+print("Post for: ");
+

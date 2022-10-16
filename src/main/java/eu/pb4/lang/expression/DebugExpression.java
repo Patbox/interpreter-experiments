@@ -5,19 +5,20 @@ import eu.pb4.lang.runtime.ObjectScope;
 import eu.pb4.lang.object.XObject;
 import eu.pb4.lang.runtime.Opcodes;
 import eu.pb4.lang.runtime.StaticObjectConsumer;
+import eu.pb4.lang.util.GenUtils;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-public record ImportExpression(Expression importPath, Position info) implements Expression {
+public record DebugExpression(String key, Expression.Position info) implements Expression  {
     @Override
     public XObject<?> execute(ObjectScope scope) throws InvalidOperationException {
-        return scope.getRuntime().importAndRun(importPath.execute(scope).asString());
+        return XObject.NULL;
     }
 
     @Override
     public void writeByteCode(DataOutputStream output, StaticObjectConsumer objects) throws IOException {
-        importPath.writeByteCode(output, objects);
-        output.write(Opcodes.IMPORT.ordinal());
+        output.write(Opcodes.DEBUG.ordinal());
+        GenUtils.writeIdentifierString(output, this.key);
     }
 }

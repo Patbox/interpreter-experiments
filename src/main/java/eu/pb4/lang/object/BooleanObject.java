@@ -2,6 +2,7 @@ package eu.pb4.lang.object;
 
 import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
+import eu.pb4.lang.runtime.ObjectScope;
 import org.jetbrains.annotations.Nullable;
 
 public class BooleanObject extends XObject<Boolean> {

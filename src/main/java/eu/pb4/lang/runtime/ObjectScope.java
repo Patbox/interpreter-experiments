@@ -1,11 +1,12 @@
-package eu.pb4.lang.object;
+package eu.pb4.lang.runtime;
 
-import eu.pb4.lang.Runtime;
+import eu.pb4.lang.object.StaticStringMapObject;
+import eu.pb4.lang.object.XObject;
 import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,37 +17,41 @@ public final class ObjectScope extends XObject<ObjectScope.ScopeVariable[]> {
     private final Runtime runtime;
     @Nullable
     private final Map<String, XObject<?>> exports;
-    @Nullable
-    private ScopeVariable[] initialVariables;
+
+
+    private ScopeVariable[][] storedVariables = new ScopeVariable[8][];
+    private int storedStateId = -1;
+
     private ScopeVariable[] localVariables;
 
     private XObject<?> exportObject;
+    private final XObject<?>[] constants;
 
-    public ObjectScope(Runtime runtime, @Nullable ObjectScope parentScope, Type type) {
+    public ObjectScope(Runtime runtime, @Nullable ObjectScope parentScope, XObject<?>[] constants, Type type) {
         if (type != Type.SCRIPT && parentScope == null) {
             throw new IllegalArgumentException("parentScope can't be null for non-global scope!");
         }
+        this.constants = constants;
         this.parentScope = parentScope;
         this.type = type;
         this.runtime = runtime;
         this.exports = switch (this.type) {
-            case SCRIPT -> new HashMap<>();
+            case SCRIPT -> new Object2ObjectOpenHashMap<>();
             case LOCAL -> parentScope.exports;
         };
 
         this.exportObject = XObject.NULL;
 
         if (this.parentScope != null) {
-            this.initialVariables = Arrays.copyOf(this.parentScope.localVariables, this.parentScope.localVariables.length);
-            this.localVariables = Arrays.copyOf(this.parentScope.localVariables, this.parentScope.localVariables.length);
+            this.localVariables = new ScopeVariable[this.parentScope.localVariables.length];
+            System.arraycopy(this.parentScope.localVariables, 0, this.localVariables, 0, this.parentScope.localVariables.length);
         } else {
-            this.initialVariables = null;
-            this.localVariables = new ScopeVariable[8];
+            this.localVariables = new ScopeVariable[16];
         }
     }
 
     public ObjectScope(Runtime runtime, ObjectScope parentScope) {
-        this(runtime, parentScope, Type.LOCAL);
+        this(runtime, parentScope, parentScope.constants, Type.LOCAL);
     }
 
     public ObjectScope(ObjectScope parentScope) {
@@ -88,48 +93,53 @@ public final class ObjectScope extends XObject<ObjectScope.ScopeVariable[]> {
 
         var variable = new ScopeVariable(name, this, readOnly, value);
         if (this.localVariables.length <= id) {
-            this.localVariables = Arrays.copyOf(this.localVariables, id + 8);
+            var old = this.localVariables;
+            this.localVariables = new ScopeVariable[id + 16];
+            System.arraycopy(old, 0, this.localVariables, 0, old.length);
+
         }
         this.localVariables[id] = variable;
 
     }
 
-    public void setVariable(String name, int id, XObject<?> value) {
+    public void setVariable(int id, XObject<?> value) {
         var obj = this.localVariables[id];
         if (obj != null) {
             obj.set(value);
             return;
         }
 
-        throw new RuntimeException(name + " isn't defined in this scope!");
+        throw new RuntimeException(null + " isn't defined in this scope!");
     }
 
-    public XObject<?> getVariable(String name, int id) {
-        if (id != -1) {
-            var obj = this.localVariables[id];
-
-            if (obj != null) {
-                return obj.get();
-            }
-        } else {
-            var obj = this.runtime.getGlobal(name);
-
-            if (obj != null) {
-                return obj;
-            }
-        }
-
-        throw new RuntimeException(name + " isn't defined in this scope!");
+    public XObject<?> getVariable(int id) {
+        return this.localVariables[id].object;
     }
 
-    public void clear() {
-        int i = 0;
-        for (; i < this.initialVariables.length; i++) {
-            this.localVariables[i] = this.initialVariables[i];
+    public XObject<?> getConstant(int id) {
+        return this.constants[id];
+    }
+
+    public void storeState() {
+        var state = new ScopeVariable[this.localVariables.length];
+        System.arraycopy(this.localVariables, 0, state, 0, state.length);
+        ++this.storedStateId;
+        if (this.storedVariables.length == this.storedStateId) {
+            var old = this.storedVariables;
+            this.storedVariables = new ScopeVariable[old.length + 8][];
+            System.arraycopy(old, 0, this.storedVariables, 0, old.length);
         }
-        for (; i < this.localVariables.length; i++) {
-            this.localVariables[i] = null;
-        }
+        this.storedVariables[this.storedStateId] = state;
+    }
+
+    public void restoreState() {
+        System.arraycopy(this.storedVariables[this.storedStateId], 0, this.localVariables, 0, this.storedVariables[this.storedStateId].length);
+    }
+
+    public void restoreAndRemoveState() {
+        System.arraycopy(this.storedVariables[this.storedStateId], 0, this.localVariables, 0, this.storedVariables[this.storedStateId].length);
+        this.storedVariables[this.storedStateId] = null;
+        this.storedStateId--;
     }
 
     @Override
@@ -140,16 +150,7 @@ public final class ObjectScope extends XObject<ObjectScope.ScopeVariable[]> {
     @Override
     public XObject<?> get(ObjectScope scope, String key, Expression.Position info) throws InvalidOperationException {
         try {
-            return this.getVariable(key, -1);
-        } catch (Exception e) {
-            throw new InvalidOperationException(info, e.getMessage());
-        }
-    }
-
-    @Override
-    public void set(ObjectScope scope, String key, XObject<?> object, Expression.Position info) throws InvalidOperationException {
-        try {
-            this.setVariable(key, -1, object);
+            return this.runtime.getGlobal(key);
         } catch (Exception e) {
             throw new InvalidOperationException(info, e.getMessage());
         }
@@ -169,16 +170,6 @@ public final class ObjectScope extends XObject<ObjectScope.ScopeVariable[]> {
         return this.exportObject;
     }
 
-    public void updateInitialState() {
-        if (this.initialVariables.length < this.localVariables.length) {
-            this.initialVariables = Arrays.copyOf(this.localVariables, this.localVariables.length);
-        } else {
-            for (int i = 0; i < this.localVariables.length; i++) {
-                this.initialVariables[i] = this.localVariables[i];
-            }
-        }
-    }
-
     public enum Type {
         SCRIPT, LOCAL
     }
@@ -187,7 +178,7 @@ public final class ObjectScope extends XObject<ObjectScope.ScopeVariable[]> {
         public final ObjectScope scope;
         public final boolean readonly;
         public final String name;
-        private XObject<?> object;
+        protected XObject<?> object;
 
         public ScopeVariable(String name, ObjectScope scope, boolean readonly, XObject<?> object) {
             this.name = name;

@@ -2,6 +2,7 @@ package eu.pb4.lang.object;
 
 import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
+import eu.pb4.lang.runtime.ObjectScope;
 import org.jetbrains.annotations.Nullable;
 
 public class NumberObject extends XObject<Double> {
@@ -56,6 +57,8 @@ public class NumberObject extends XObject<Double> {
     public XObject<?> multiply(ObjectScope scope, XObject<?> object, Expression.Position info) throws InvalidOperationException {
         if (object instanceof NumberObject numberObject) {
             return NumberObject.of(this.value * numberObject.value);
+        } else if (object instanceof StringObject stringObject) {
+            return stringObject.multiply(scope, this, info);
         }
 
         return super.multiply(scope, object, info);

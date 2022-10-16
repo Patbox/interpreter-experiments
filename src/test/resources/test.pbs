@@ -2,6 +2,7 @@
 
 var ergh = 6;
 
+print("Func")
 var test2 = (x) -> {5};
 var test3 = (x) -> x * 2;
 
@@ -14,10 +15,11 @@ test(1, 2, 3);
 (() -> { return 8; })()
 
 print((2 * 5 + 8) ^ 2 * 2)
+print("exp")
 
 export test 98.5
 export test2 0xFF
-
+print("math")
 print(2 * (5 * 2 + 8) ^ 2)
 
 var o = 0;
@@ -26,12 +28,16 @@ print(++o + 10);
 print(o++ + 10);
 print(o);
 
+print("map")
+
 var map = {{
     true: false
 }};
+print("init")
 
 map[null] = null;
 map[3] = 85;
+print("set")
 
 print(typeof map, map);
 
@@ -63,9 +69,12 @@ print(Test);
 
 print(Test.get());
 Test.set("Everyone!");
+__debug printStack
 print(import("testjar:test2").get());
-
-print([ typeof Object(), typeof Map(), typeof List(), typeof 0xFF, typeof "hello", typeof Global, typeof print ]);
+__debug opcodes_true
+var z = [ typeof Object(), typeof Map(), typeof List(), typeof 0xFF, typeof "hello", typeof Global, typeof print ];
+print(z);
+__debug opcodes_false
 
 
 print(Runtime.run("return 6 * 8 + 4;"))
@@ -81,15 +90,15 @@ var hvs = (hue, saturation, value) -> {
     var q = value * (1 - f * saturation);
     var t = value * (1 - (1 - f) * saturation);
 
-    /*
     if h == 0 return rgb(value, t, p);
     if h == 1 return rgb(q, value, p);
     if h == 2 return rgb(p, value, t);
     if h == 3 return rgb(p, q, value);
     if h == 4 return rgb(t, p, value);
     if h == 5 return rgb(value, p, q);
-    */
-    return switch h {
+
+
+    /*switch h {
         case 0 -> rgb(value, t, p);
         case 1 -> rgb(q, value, p);
         case 2 -> rgb(p, value, t);
@@ -97,29 +106,34 @@ var hvs = (hue, saturation, value) -> {
         case 4 -> rgb(t, p, value);
         case 5 -> rgb(value, p, q);
         default -> 0;
-    };
+    };*/
 };
 var delta = 0;
 
-import Fonts "testjar:font";
+//import Fonts "testjar:font";
 
-print(Fonts);
+//print(Fonts);
 
-var font = Fonts.read(FS.read("./run/font.mcaf").reader);
-print("Font: " + font)
+//var font = Fonts.read(FS.read("./run/font.mcaf").reader);
+//print("Font: " + font)
 var lastTime = 0;
+    __debug hit_time
+    __debug hit_time
+    __debug hit_time
+    __debug hit_time
+    __debug hit_time
 
-Runtime.interval(10, () -> {
+Runtime.interval(6, () -> {
+    __debug time_false
     var time = Runtime.currentTimeMillis();
-    var color = hvs((delta / 10000 * 2 + 0.5) % 1, 0.7, 0.8);
+    var color = hvs((delta / 10000 * 2 + 0.5) % 1, 0.7, 0.81);
     Display.clear(hvs((delta / 10000) % 1, 0.7, 1));
     for var x = 0; x < 128 * 5; ++x {
         var sin = (Math.sin((x + delta) / 40) + 1) * 128 - 0.5 + Math.cos((x + delta) / 6) * 20
-
         for var y = sin.floor; y <= sin.ceil; y++ {
             for var i = -2; i < 4; i++ {
                 for var i2 = -2; i2 < 4; i2++ {
-                    Display.setPixel(x + i2, y + i + 256 - 64, color);
+                    Display.setPixel(x + i2 + 16, y + i + 256 - 64, color);
                 }
             }
         };
@@ -127,21 +141,22 @@ Runtime.interval(10, () -> {
 
     var text = "Hello World!\nMap Canvas's font format works!\nRender time: " + lastTime + "ms";
 
-    font.drawText(text, 64 + 3, 64 + 3, 24, (x, y) -> {
+    /*font.drawText(text, 64 + 3, 64 + 3, 24, (x, y) -> {
         Display.setPixel(x + Math.cos(y / 40 + delta / 10) * 8, y + Math.sin(x / 40 + delta / 10) * 8, hvs((delta / 100 * 2 + 0.5 + x / 60) % 1, 0.7, 0.3));
     })
 
     font.drawText(text, 64, 64, 24, (x, y) -> {
         Display.setPixel(x + Math.cos(y / 40 + delta / 10) * 8, y + Math.sin(x / 40 + delta / 10) * 8, hvs((delta / 100 * 2 + 0.5 + x / 60) % 1, 0.7, 0.8));
-        //Display.setPixel(x, y, 0x0);
-    })
+        Display.setPixel(x, y, 0x0);
+    })*/
 
     //delta += (Math.sin(Runtime.currentTimeMillis() / 10000) + 1) * 2 + 2;
     delta += 4;
     Display.update();
-
+    __debug hit_time
     lastTime = Runtime.currentTimeMillis() - time;
-    print(lastTime)
+    print("Time: " + lastTime)
+    __debug time_true
 });
 
 var path = FS.path('./run/files')
@@ -153,3 +168,4 @@ print(FS.write(path + "/test.txt", "Hello world!\n" * 64));
 
 
 print('end');
+__debug time_true

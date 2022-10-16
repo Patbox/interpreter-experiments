@@ -1,6 +1,6 @@
 package eu.pb4.lang.test;
 
-import eu.pb4.lang.Runtime;
+import eu.pb4.lang.runtime.Runtime;
 import eu.pb4.lang.object.XObject;
 import eu.pb4.lang.util.ObjectBuilder;
 
@@ -14,11 +14,6 @@ public class Main {
 
     public static void main(String... main) throws Exception {
         var input = Files.readString(Path.of(Main.class.getClassLoader().getResource("test.pbs").toURI()));
-
-
-        /*for (var token : new Tokenizer(new StringReader(input)).getTokens()) {
-            System.out.println(token);
-        }*/
 
         var runtime = new Runtime();
         runtime.defaultGlobals();
@@ -90,13 +85,15 @@ public class Main {
                 .build());
 
         var time = System.currentTimeMillis();
-        runtime.run(input);
-        runtime.importAndRun("testjar:class");
+        var bytecode = Runtime.buildByteCode(input);
+        System.out.println("ByteCode: " + (System.currentTimeMillis() - time));
+        time = System.currentTimeMillis();
+        runtime.execute(bytecode);
+        //runtime.importAndRun("testjar:class");
         System.out.println("Time: " + (System.currentTimeMillis() - time));
 
         while (true) {
             runtime.tick();
-
             Thread.sleep(1);
         }
     }

@@ -2,12 +2,13 @@ package eu.pb4.lang.object;
 
 import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
+import eu.pb4.lang.runtime.ObjectScope;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 
 public class StaticStringMapObject extends XObject<Map<String, XObject<?>>> {
-    private final Map<String, XObject<?>> map ;
+    private final Map<String, XObject<?>> map;
 
     public StaticStringMapObject(Map<String, XObject<?>> map) {
         this.map = map;

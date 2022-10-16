@@ -48,6 +48,7 @@ public class Tokenizer {
                     case "case" -> TokenType.CASE;
                     case "default" -> TokenType.DEFAULT;
                     case "switch" -> TokenType.SWITCH;
+                    case "__debug" -> TokenType.DEBUG;
                     default -> TokenType.IDENTIFIER;
                 };
 
@@ -277,6 +278,7 @@ public class Tokenizer {
         STATIC,
         CONSTRUCTOR,
         FINAL,
-        AND_SET, OR_SET, FUNCTION_ARROW
+        AND_SET, OR_SET, FUNCTION_ARROW,
+        DEBUG, BYTECODE;
     }
 }

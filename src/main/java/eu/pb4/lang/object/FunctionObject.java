@@ -2,6 +2,7 @@ package eu.pb4.lang.object;
 
 import eu.pb4.lang.exception.InvalidOperationException;
 import eu.pb4.lang.expression.Expression;
+import eu.pb4.lang.runtime.ObjectScope;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
@@ -36,9 +37,6 @@ public class FunctionObject extends XObject<FunctionObject> {
         var count = Math.min(args.length, this.args.length);
 
         for (var i = 0; i < count; i++) {
-            if (this.argsIds[i] == -1) {
-                throw new InvalidOperationException(info, "AAAAAAAAAA");
-            }
             funcScope.declareVariable(this.args[i], this.argsIds[i], args[i], false);
         }
 
